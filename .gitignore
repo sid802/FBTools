@@ -1,0 +1,5 @@
+*.pyc
+.idea*
+fb_group_parser*
+*.xls
+*.xlsx
