@@ -55,3 +55,28 @@ class FBPicture(FBNode):
         self.comments = comments  # List of FBComments
 
 
+class FBParser(object):
+    """
+    General FB Parser
+    """
+
+    def _fix_payload(self, payload):
+        """
+        :param payload: html payload
+        :return: unescaped html
+        """
+
+        payload_html = payload.replace(r'\u003C', '<')
+        return self._html_parser.unescape(payload_html)
+
+    def _info_from_url(self, regex_name, src_string):
+        """
+        :param regex: regex's name in dict. will be used to extract the info
+        :param src_string: source string to extract regex from
+        :return: extracted info, None if not found
+        """
+
+        info_match = self._regexes[regex_name].search(src_string)
+        if info_match is None:
+            return None
+        return info_match.group('result')
