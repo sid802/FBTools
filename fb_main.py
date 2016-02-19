@@ -1,5 +1,7 @@
 #-*- encoding: utf-8 -*-
 __author__ = 'Sid'
+from HTMLParser import HTMLParser
+import fb_constants as constants
 
 class FBNode(object):
     def __init__(self, fid):
@@ -60,6 +62,9 @@ class FBParser(object):
     General FB Parser
     """
 
+    _html_parser = HTMLParser()
+    driver = None  # Will be initialized later
+
     def _fix_payload(self, payload):
         """
         :param payload: html payload
@@ -75,8 +80,14 @@ class FBParser(object):
         :param src_string: source string to extract regex from
         :return: extracted info, None if not found
         """
-
-        info_match = self._regexes[regex_name].search(src_string)
+        info_match = getattr(constants.FBRegexes, regex_name).search(src_string)
         if info_match is None:
             return None
         return info_match.group('result')
+
+    def _parse_user_from_link(self, user_link):
+        """
+        :param user_element: <a> element containing user info's
+        :return:
+        """
+        pass

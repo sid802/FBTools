@@ -20,7 +20,8 @@ from lxml import html
 
 import re, json
 from mysql import connector
-from fb_nodes import *
+from fb_main import *
+import fb_constants as constants
 
 def _default_vs_new(default_val, new_val):
     """
@@ -32,22 +33,11 @@ def _default_vs_new(default_val, new_val):
         return new_val
     return default_val
 
-class PhotoParser(object):
+class PhotoParser(FBParser):
     """
-    Class to parse photo's metada
+    Class to parse photo's metadata
     """
-    _regexes = {
-        'my_fid': re.compile(r'"USER_ID":"(?P<result>\d+)'),
-        'json_from_html': re.compile(r'\{.*\}', re.MULTILINE),
-        'liker_fid_from_url': re.compile(r'php\?id=(?P<result>\d+)'),  # url comes from liker_fid_url xpath
-        'liker_username_from_url': re.compile(r'facebook\.com\/(?P<result>[\w.]+)')  # url comes from liker_username_url
-    }
-    _xpaths = {
-        'likers': '//li[@class="fbProfileBrowserListItem"]//a[@data-gt]',
-        'liker_full_name': './text()',  # Relative to liker_info_element
-        'liker_fid_url': './@data-hovercard',  # Relative to liker_info_element
-        'liker_username_url': './@href'
-    }
+
     def __init__(self, photos_fids, extract_taggees=True, extract_likers=True, extract_commenters=True,
                  extract_comments=True, extract_privacy=True):
         """
@@ -64,33 +54,6 @@ class PhotoParser(object):
         self.extract_commenters = extract_commenters
         self.extract_comments = extract_comments
         self.extract_privacy = extract_privacy
-        self._html_parser = HTMLParser()
-        self.driver = None  # Will be initialized later
-
-    def _parse_payload_from_ajax_response(self, ajax_response):
-        """
-        :param ajax_response: full response
-        """
-
-        full_json_match = self._regexes['json_from_html'].search(ajax_response)  # Keep only json string
-        if not full_json_match:
-            return None
-
-        full_json = full_json_match.group()
-        json_dict = json.loads(full_json)
-        try:
-            return json_dict['jsmods']['markup'][0][1]['__html']
-        except Exception:
-            return None
-
-    def _fix_payload(self, payload):
-        """
-        :param payload: html payload
-        :return: unescaped html
-        """
-
-        payload_html = payload.replace(r'\u003C', '<')
-        return self._html_parser.unescape(payload_html)
 
     def init_connect(self, email, password):
         """
@@ -114,23 +77,11 @@ class PhotoParser(object):
             # Failed to log in
             return None
 
-        my_id_match = self._regexes['my_fid'].search(self.driver.page_source)
+        my_id_match = constants.FBRegexes.my_fid.search(self.driver.page_source)
         if my_id_match:
             return my_id_match.group('result')
 
         return None
-
-    def _info_from_url(self, regex_name, src_string):
-        """
-        :param regex: regex's name in dict. will be used to extract the info
-        :param src_string: source string to extract regex from
-        :return: extracted info, None if not found
-        """
-
-        info_match = self._regexes[regex_name].search(src_string)
-        if info_match is None:
-            return None
-        return info_match.group('result')
 
     def parse_photo(self, photo_id, user_id, extract_taggees=True, extract_likers=True, extract_commenters=True,
               extract_sharers=True, extract_comments=True, extract_privacy=True):
@@ -149,84 +100,13 @@ class PhotoParser(object):
         cur_picture = FBPicture(photo_id)
 
         if extract_likers:
-            cur_picture.likers = self.parse_photo_likers(photo_id, user_id)
+            liker_parser = PhotoParser.FBPhotoLikerParser(self.driver)
+            cur_picture.likers = liker_parser.parse_photo_likers(photo_id, user_id)
+
+        if extract_taggees:
+            taggee_parser = 1
 
         return cur_picture
-
-    def _parse_fbuser_from_liker_element(self, user_element):
-        """
-        :param xpath_element: XPath element
-        :return: FBUser instance of current element
-        """
-        username = full_name = fid = None
-
-
-        fid_url = user_element.xpath(self._xpaths['liker_fid_url'])
-        if len(fid_url) > 0:
-            fid = unicode(self._info_from_url('liker_fid_from_url', fid_url[0]))
-
-        username_url = user_element.xpath(self._xpaths['liker_username_url'])
-        if len(username_url) > 0:
-            username = unicode(self._info_from_url('liker_username_from_url', username_url[0]))
-            if username in [u'profile.php', u'people']:
-                username = None
-
-        full_name_result = user_element.xpath(self._xpaths['liker_full_name'])
-        if len(full_name_result) > 0:
-            full_name = unicode(full_name_result[0])
-
-        return FBUser(fid, full_name, username)
-
-    def _get_likers_html(self, photo_id, user_id, liker_start=0):
-        """
-        :param photo_id: Photo fid
-        :param user_id: Logged in user id
-        :param liker_start: Index of liker to start parsing
-        :return: relevant html containing likers
-        """
-        base_url = 'https://www.facebook.com/ajax/browser/dialog/likes?id={photo_id}&start={start}&__user={user_id}&__a=1'
-
-        photo_url = base_url.format(photo_id=photo_id, user_id=user_id, start=liker_start)
-        print photo_url
-        self.driver.get(photo_url)
-        page_source = self._parse_payload_from_ajax_response(self.driver.page_source)
-        if page_source is None:
-            return None
-        fixed_payload = self._fix_payload(page_source)
-        return fixed_payload
-
-    def parse_photo_likers(self, photo_id, user_id):
-        """
-        :param photo_id: Photo's FID
-        :param user_id: logged in user fid
-        :return: List of FBUsers
-        """
-
-        if self.driver is None:
-            self.driver = webdriver.Chrome()
-
-        liker_nodes = []
-
-        liker_start = 0
-
-        html_payload = self._get_likers_html(photo_id, user_id, liker_start)
-        tree = html.fromstring(html_payload)
-
-        all_likers = tree.xpath(self._xpaths['likers'])
-        while len(all_likers) > 0:
-            print "Currently extracted: {0}".format(len(liker_nodes))
-            print 'Ectracting now: {0}'.format(len(all_likers))
-            for liker in all_likers:
-                current_liker = self._parse_fbuser_from_liker_element(liker)
-                if not current_liker in liker_nodes:
-                    liker_nodes.append(current_liker)
-
-            liker_start += len(all_likers)
-            html_payload = self._get_likers_html(photo_id, user_id, liker_start)
-            tree = html.fromstring(html_payload)
-            all_likers = tree.xpath(self._xpaths['likers'])
-
-        return liker_nodes
 
     def run(self, email, password, extract_taggees=True, extract_likers=True, extract_commenters=True,
               extract_comments=True, extract_privacy=True):
@@ -270,6 +150,109 @@ class PhotoParser(object):
 
     def quit(self):
         self.driver.quit()
+
+    class FBPhotoTaggeeParser(FBParser):
+        """
+        Parses a photo's taggees
+        """
+        pass
+    class FBPhotoLikerParser(FBParser):
+        """
+        Parses a photo's likers
+        """
+
+        def __init__(self, driver):
+            self.driver = driver
+
+        def _parse_payload_from_ajax_response(self, ajax_response):
+            """
+            :param ajax_response: full response
+            """
+
+            full_json_match = constants.FBRegexes.json_from_html.search(ajax_response)  # Keep only json string
+            if not full_json_match:
+                return None
+
+            full_json = full_json_match.group()
+            json_dict = json.loads(full_json)
+            try:
+                return json_dict['jsmods']['markup'][0][1]['__html']
+            except Exception:
+                return None
+
+        def _parse_fbuser_from_liker_element(self, user_element):
+            """
+            :param xpath_element: XPath element
+            :return: FBUser instance of current element
+            """
+            username = full_name = fid = None
+
+            fid_url = user_element.xpath(constants.FBXpaths.user_fid_url)
+            if len(fid_url) > 0:
+                fid = unicode(self._info_from_url('liker_fid_from_url', fid_url[0]))
+
+            username_url = user_element.xpath(constants.FBXpaths.user_username_url)
+            if len(username_url) > 0:
+                username = unicode(self._info_from_url('liker_username_from_url', username_url[0]))
+                if username in [u'profile.php', u'people']:
+                    username = None
+
+            full_name_result = user_element.xpath(constants.FBXpaths.user_full_name)
+            if len(full_name_result) > 0:
+                full_name = unicode(full_name_result[0])
+
+            return FBUser(fid, full_name, username)
+
+        def _get_likers_html(self, photo_id, user_id, liker_start=0):
+            """
+            :param photo_id: Photo fid
+            :param user_id: Logged in user id
+            :param liker_start: Index of liker to start parsing
+            :return: relevant html containing likers
+            """
+            base_url = 'https://www.facebook.com/ajax/browser/dialog/likes?id={photo_id}&start={start}&__user={user_id}&__a=1'
+
+            photo_url = base_url.format(photo_id=photo_id, user_id=user_id, start=liker_start)
+            print photo_url
+            self.driver.get(photo_url)
+            page_source = self._parse_payload_from_ajax_response(self.driver.page_source)
+            if page_source is None:
+                return None
+            fixed_payload = self._fix_payload(page_source)
+            return fixed_payload
+
+        def parse_photo_likers(self, photo_id, user_id):
+            """
+            :param photo_id: Photo's FID
+            :param user_id: logged in user fid
+            :return: List of FBUsers
+            """
+
+            if self.driver is None:
+                self.driver = webdriver.Chrome()
+
+            liker_nodes = []
+
+            liker_start = 0
+
+            html_payload = self._get_likers_html(photo_id, user_id, liker_start)
+            tree = html.fromstring(html_payload)
+
+            all_likers = tree.xpath(constants.FBXpaths.likers)
+            while len(all_likers) > 0:
+                print "Currently extracted: {0}".format(len(liker_nodes))
+                print 'Ectracting now: {0}'.format(len(all_likers))
+                for liker in all_likers:
+                    current_liker = self._parse_fbuser_from_liker_element(liker)
+                    if not current_liker in liker_nodes:
+                        liker_nodes.append(current_liker)
+
+                liker_start += len(all_likers)
+                html_payload = self._get_likers_html(photo_id, user_id, liker_start)
+                tree = html.fromstring(html_payload)
+                all_likers = tree.xpath(constants.FBXpaths.likers)
+
+            return liker_nodes
 
 
 if __name__ == '__main__':
