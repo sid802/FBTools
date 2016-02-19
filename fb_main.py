@@ -87,7 +87,23 @@ class FBParser(object):
 
     def _parse_user_from_link(self, user_link):
         """
-        :param user_element: <a> element containing user info's
-        :return:
+        :param xpath_element: XPath element
+        :return: FBUser instance of current element
         """
-        pass
+        username = full_name = fid = None
+
+        fid_url = user_link.xpath(constants.FBXpaths.user_fid_url)
+        if len(fid_url) > 0:
+            fid = unicode(self._info_from_url('liker_fid_from_url', fid_url[0]))
+
+        username_url = user_link.xpath(constants.FBXpaths.user_username_url)
+        if len(username_url) > 0:
+            username = unicode(self._info_from_url('liker_username_from_url', username_url[0]))
+            if username in [u'profile.php', u'people']:
+                username = None
+
+        full_name_result = user_link.xpath(constants.FBXpaths.user_full_name)
+        if len(full_name_result) > 0:
+            full_name = unicode(full_name_result[0])
+
+        return FBUser(fid, full_name, username)

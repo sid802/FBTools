@@ -155,7 +155,11 @@ class PhotoParser(FBParser):
         """
         Parses a photo's taggees
         """
-        pass
+
+        def __init__(self, driver):
+            self.driver = driver
+
+        # https://www.facebook.com/ajax/pagelet/generic.php/PhotoViewerInitPagelet?data={%22fbid%22:%2210206326013841853%22}&__user=531721334&__a=1
     class FBPhotoLikerParser(FBParser):
         """
         Parses a photo's likers
@@ -180,29 +184,6 @@ class PhotoParser(FBParser):
             except Exception:
                 return None
 
-        def _parse_fbuser_from_liker_element(self, user_element):
-            """
-            :param xpath_element: XPath element
-            :return: FBUser instance of current element
-            """
-            username = full_name = fid = None
-
-            fid_url = user_element.xpath(constants.FBXpaths.user_fid_url)
-            if len(fid_url) > 0:
-                fid = unicode(self._info_from_url('liker_fid_from_url', fid_url[0]))
-
-            username_url = user_element.xpath(constants.FBXpaths.user_username_url)
-            if len(username_url) > 0:
-                username = unicode(self._info_from_url('liker_username_from_url', username_url[0]))
-                if username in [u'profile.php', u'people']:
-                    username = None
-
-            full_name_result = user_element.xpath(constants.FBXpaths.user_full_name)
-            if len(full_name_result) > 0:
-                full_name = unicode(full_name_result[0])
-
-            return FBUser(fid, full_name, username)
-
         def _get_likers_html(self, photo_id, user_id, liker_start=0):
             """
             :param photo_id: Photo fid
@@ -213,7 +194,6 @@ class PhotoParser(FBParser):
             base_url = 'https://www.facebook.com/ajax/browser/dialog/likes?id={photo_id}&start={start}&__user={user_id}&__a=1'
 
             photo_url = base_url.format(photo_id=photo_id, user_id=user_id, start=liker_start)
-            print photo_url
             self.driver.get(photo_url)
             page_source = self._parse_payload_from_ajax_response(self.driver.page_source)
             if page_source is None:
@@ -240,10 +220,8 @@ class PhotoParser(FBParser):
 
             all_likers = tree.xpath(constants.FBXpaths.likers)
             while len(all_likers) > 0:
-                print "Currently extracted: {0}".format(len(liker_nodes))
-                print 'Ectracting now: {0}'.format(len(all_likers))
                 for liker in all_likers:
-                    current_liker = self._parse_fbuser_from_liker_element(liker)
+                    current_liker = self._parse_user_from_link(liker)
                     if not current_liker in liker_nodes:
                         liker_nodes.append(current_liker)
 
