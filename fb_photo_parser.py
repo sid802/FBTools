@@ -238,9 +238,5 @@ if __name__ == '__main__':
     res = ph_parser.run('sidfeiner@gmail.com', 'Qraaynem23')
     ph_parser.quit()
     for liker in res[0].likers:
-        try:
-            print liker
-        except Exception, e:
-            print type(liker.fid), type(liker.full_name)
-            print str(e)
+        print liker
 
