@@ -5,6 +5,12 @@ class FBNode(object):
     def __init__(self, fid):
         self.fid = fid
 
+    def __repr__(self):
+        return self.__unicode__()
+
+    def __unicode__(self):
+        return u'FID: {0}'.format(unicode(self.fid))
+
 class FBUser(FBNode):
     def __init__(self, fid, full_name, user_name=None, friends=None, current_city=None, home_town=None, phones=None,
                  address=None, emails=None, birth_date=None, birth_year=None, gender=None, interested_in=None,
@@ -24,6 +30,12 @@ class FBUser(FBNode):
         self.interested_in = interested_in  # String
         self.languages = languages  # List of string
         self.family_members = family_members  # List of FBUsers
+
+    def __repr__(self):
+        return self.__unicode__()
+
+    def __unicode__(self):
+        return u'FID: {0}, username: {1}, full name: {2}'.format(self.fid, self.user_name, self.full_name)
 
 class FBPicture(FBNode):
     def __init__(self, fid, author=None, taggees=None, likers=None, commenters=None, comments=None, sharers=None, privacy=None):
