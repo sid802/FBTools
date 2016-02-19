@@ -11,7 +11,6 @@ __author__ = 'Sid'
 #
 ##############################################
 
-import re, time, sys, json, export_to_file, canonization
 from datetime import datetime
 from base64 import b64encode
 from HTMLParser import HTMLParser
@@ -19,6 +18,7 @@ from HTMLParser import HTMLParser
 from selenium import webdriver
 from lxml import html
 
+import re, json
 from mysql import connector
 from fb_nodes import *
 
@@ -36,6 +36,18 @@ class PhotoParser(object):
     """
     Class to parse photo's metada
     """
+    _regexes = {
+        'my_fid': re.compile(r'"USER_ID":"(?P<result>\d+)'),
+        'json_from_html': re.compile(r'\{.*\}', re.MULTILINE),
+        'liker_fid_from_url': re.compile(r'php\?id=(?P<result>\d+)'),  # url comes from liker_fid_url xpath
+        'liker_username_from_url': re.compile(r'facebook\.com\/(?P<result>[\w.]+)')  # url comes from liker_username_url
+    }
+    _xpaths = {
+        'likers': '//li[@class="fbProfileBrowserListItem"]//a[@data-gt]',
+        'liker_full_name': './text()',  # Relative to liker_info_element
+        'liker_fid_url': './@data-hovercard',  # Relative to liker_info_element
+        'liker_username_url': './@href'
+    }
     def __init__(self, photos_fids, extract_taggees=True, extract_likers=True, extract_commenters=True,
                  extract_comments=True, extract_privacy=True):
         """
@@ -52,7 +64,33 @@ class PhotoParser(object):
         self.extract_commenters = extract_commenters
         self.extract_comments = extract_comments
         self.extract_privacy = extract_privacy
+        self._html_parser = HTMLParser()
         self.driver = None  # Will be initialized later
+
+    def _parse_payload_from_ajax_response(self, ajax_response):
+        """
+        :param ajax_response: full response
+        """
+
+        full_json_match = self._regexes['json_from_html'].search(ajax_response)  # Keep only json string
+        if not full_json_match:
+            return None
+
+        full_json = full_json_match.group()
+        json_dict = json.loads(full_json)
+        try:
+            return json_dict['jsmods']['markup'][0][1]['__html']
+        except Exception:
+            return None
+
+    def _fix_payload(self, payload):
+        """
+        :param payload: html payload
+        :return: unescaped html
+        """
+
+        payload_html = payload.replace(r'\u003C', '<')
+        return self._html_parser.unescape(payload_html)
 
     def init_connect(self, email, password):
         """
@@ -63,11 +101,11 @@ class PhotoParser(object):
 
         # set email
         email_element = self.driver.find_element_by_id('email')
-        email_element.send_keys(self.email)
+        email_element.send_keys(email)
 
         # set password
         password_element = self.driver.find_element_by_id('pass')
-        password_element.send_keys(self.password)
+        password_element.send_keys(password)
 
         # press login button
         self.driver.find_element_by_id('loginbutton').click()
@@ -76,14 +114,26 @@ class PhotoParser(object):
             # Failed to log in
             return None
 
-        my_id_match = self._regexes['my_id'].search(self.driver.page_source)
+        my_id_match = self._regexes['my_fid'].search(self.driver.page_source)
         if my_id_match:
             return my_id_match.group('result')
 
         return None
 
-    def parse_photo(self, extract_taggees=True, extract_likers=True, extract_commenters=True,
-              extract_comments=True, extract_privacy=True):
+    def _info_from_url(self, regex_name, src_string):
+        """
+        :param regex: regex's name in dict. will be used to extract the info
+        :param src_string: source string to extract regex from
+        :return: extracted info, None if not found
+        """
+
+        info_match = self._regexes[regex_name].search(src_string)
+        if info_match is None:
+            return None
+        return info_match.group('result')
+
+    def parse_photo(self, photo_id, user_id, extract_taggees=True, extract_likers=True, extract_commenters=True,
+              extract_sharers=True, extract_comments=True, extract_privacy=True):
         """
         :param photo_html: Current photo HTML
         :param extract_taggees: Boolean, extract tagged people
@@ -93,11 +143,96 @@ class PhotoParser(object):
         :param extract_privacy: Boolean, extract privacy mode
         :return: FBPhoto instance of current photo
         """
-        # TODO: init xpaths if __init__ function
-        pass
+
+        taggees = likers = commenters = sharers = comments = privacy = None
+
+        cur_picture = FBPicture(photo_id)
+
+        if extract_likers:
+            cur_picture.likers = self.parse_photo_likers(photo_id, user_id)
+
+        return cur_picture
+
+    def _parse_fbuser_from_liker_element(self, user_element):
+        """
+        :param xpath_element: XPath element
+        :return: FBUser instance of current element
+        """
+        username = full_name = fid = None
+
+
+        fid_url = user_element.xpath(self._xpaths['liker_fid_url'])
+        if len(fid_url) > 0:
+            fid = unicode(self._info_from_url('liker_fid_from_url', fid_url[0]))
+
+        username_url = user_element.xpath(self._xpaths['liker_username_url'])
+        if len(username_url) > 0:
+            username = unicode(self._info_from_url('liker_username_from_url', username_url[0]))
+            if username in [u'profile.php', u'people']:
+                username = None
+
+        full_name_result = user_element.xpath(self._xpaths['liker_full_name'])
+        if len(full_name_result) > 0:
+            full_name = unicode(full_name_result[0])
+
+        return FBUser(fid, full_name, username)
+
+    def _get_likers_html(self, photo_id, user_id, liker_start=0):
+        """
+        :param photo_id: Photo fid
+        :param user_id: Logged in user id
+        :param liker_start: Index of liker to start parsing
+        :return: relevant html containing likers
+        """
+        base_url = 'https://www.facebook.com/ajax/browser/dialog/likes?id={photo_id}&start={start}&__user={user_id}&__a=1'
+
+        photo_url = base_url.format(photo_id=photo_id, user_id=user_id, start=liker_start)
+        print photo_url
+        self.driver.get(photo_url)
+        page_source = self._parse_payload_from_ajax_response(self.driver.page_source)
+        if page_source is None:
+            return None
+        fixed_payload = self._fix_payload(page_source)
+        return fixed_payload
+
+    def parse_photo_likers(self, photo_id, user_id):
+        """
+        :param photo_id: Photo's FID
+        :param user_id: logged in user fid
+        :return: List of FBUsers
+        """
+
+        if self.driver is None:
+            self.driver = webdriver.Chrome()
+
+        liker_nodes = []
+
+        liker_start = 0
+
+        html_payload = self._get_likers_html(photo_id, user_id, liker_start)
+        tree = html.fromstring(html_payload)
+
+        all_likers = tree.xpath(self._xpaths['likers'])
+        while len(all_likers) > 0:
+            print "Currently extracted: {0}".format(len(liker_nodes))
+            print 'Ectracting now: {0}'.format(len(all_likers))
+            for liker in all_likers:
+                current_liker = self._parse_fbuser_from_liker_element(liker)
+                if not current_liker in liker_nodes:
+                    liker_nodes.append(current_liker)
+
+            liker_start += len(all_likers)
+            html_payload = self._get_likers_html(photo_id, user_id, liker_start)
+            tree = html.fromstring(html_payload)
+            all_likers = tree.xpath(self._xpaths['likers'])
+
+        return liker_nodes
 
     def run(self, email, password, extract_taggees=True, extract_likers=True, extract_commenters=True,
               extract_comments=True, extract_privacy=True):
+
+        if self.driver is None:
+            self.driver = webdriver.Chrome()
 
         user_fid = self.init_connect(email, password)
         if user_fid is None:
@@ -123,20 +258,28 @@ class PhotoParser(object):
         extract_comments = _default_vs_new(self.extract_comments, extract_comments)
         extract_privacy = _default_vs_new(self.extract_privacy, extract_privacy)
 
-        base_url = 'https://www.facebook.com/ajax/browser/dialog/likes?id={photo_id}&__user={user_id}&__a=1'
         all_photos = []
 
         for photo_id in self.photos_fids:
-            photo_url = base_url.format(photo_id=photo_id, user_id=user_id)
-            self.driver.get(photo_url)
-            current_photo = self.parse_photo_html(self.driver.page_source, extract_taggees,
+            current_photo = self.parse_photo(photo_id, user_id, extract_taggees, user_id,
                                   extract_likers, extract_commenters,
                                   extract_comments, extract_privacy)
             all_photos.append(current_photo)
 
+        return all_photos
 
+    def quit(self):
+        self.driver.quit()
 
 
 if __name__ == '__main__':
-    ph_parser = PhotoParser(['10151644807206335'])
-    ph_parser.parse()
+    ph_parser = PhotoParser(['10206326013841853'])
+    res = ph_parser.run('sidfeiner@gmail.com', 'Qraaynem23')
+    ph_parser.quit()
+    for liker in res[0].likers:
+        try:
+            print liker
+        except Exception, e:
+            print type(liker.fid), type(liker.full_name)
+            print str(e)
+
