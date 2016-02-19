@@ -6,16 +6,22 @@ class FBNode(object):
         self.fid = fid
 
     def __repr__(self):
-        return self.__unicode__()
+        return self.__unicode__().encode('utf-8')
 
     def __unicode__(self):
         return u'FID: {0}'.format(unicode(self.fid))
+    def __hash__(self):
+        return self.fid
+    def __eq__(self, other):
+        if isinstance(other, FBNode) and self.fid == other.fid:
+            return True
+        return False
 
 class FBUser(FBNode):
     def __init__(self, fid, full_name, user_name=None, friends=None, current_city=None, home_town=None, phones=None,
                  address=None, emails=None, birth_date=None, birth_year=None, gender=None, interested_in=None,
                  languages=None, family_members=None):
-        self.fid = fid
+        super(FBUser, self).__init__(fid)
         self.full_name = full_name  # String
         self.user_name = user_name  # String
         self.friends = friends
@@ -32,7 +38,7 @@ class FBUser(FBNode):
         self.family_members = family_members  # List of FBUsers
 
     def __repr__(self):
-        return self.__unicode__()
+        return self.__unicode__().encode('utf-8')
 
     def __unicode__(self):
         return u'FID: {0}, username: {1}, full name: {2}'.format(self.fid, self.user_name, self.full_name)
