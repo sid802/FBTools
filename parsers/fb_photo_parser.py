@@ -251,7 +251,11 @@ class PhotoParser(FBParser):
 
 if __name__ == '__main__':
     ph_parser = PhotoParser(['10206326013841853'])
-    res = ph_parser.run('sidfeiner@gmail.com', 'Qraaynem23')
+
+    email = raw_input('Enter Email: ')
+    password = raw_input('Enter password: ')
+
+    res = ph_parser.run(email, password)
     ph_parser.quit()
 
     print 'Likers:'
