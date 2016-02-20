@@ -108,11 +108,10 @@ class PhotoParser(FBParser):
 
         return cur_picture
 
+    @FBParser.browser_needed
     def run(self, email, password, extract_taggees=True, extract_likers=True, extract_commenters=True,
               extract_comments=True, extract_privacy=True):
 
-        if self.driver is None:
-            self.driver = webdriver.Chrome()
 
         user_fid = self.init_connect(email, password)
         if user_fid is None:
@@ -148,18 +147,15 @@ class PhotoParser(FBParser):
 
         return all_photos
 
-    def quit(self):
-        self.driver.quit()
-
     class FBPhotoTaggeeParser(FBParser):
         """
         Parses a photo's taggees
         """
 
-        def __init__(self, driver):
+        def __init__(self, driver=None):
             self.driver = driver
 
-        # https://www.facebook.com/ajax/pagelet/generic.php/PhotoViewerInitPagelet?data={%22fbid%22:%2210206326013841853%22}&__user=531721334&__a=1
+        # https://www.facebook.com/ajax/pagelet/generic.php/PhotoViewerInitPagelet?data={"fbid":"10206326013841853"}&__user=531721334&__a=1
     class FBPhotoLikerParser(FBParser):
         """
         Parses a photo's likers
@@ -201,16 +197,13 @@ class PhotoParser(FBParser):
             fixed_payload = self._fix_payload(page_source)
             return fixed_payload
 
+        @FBParser.browser_needed
         def parse_photo_likers(self, photo_id, user_id):
             """
             :param photo_id: Photo's FID
             :param user_id: logged in user fid
             :return: List of FBUsers
             """
-
-            if self.driver is None:
-                self.driver = webdriver.Chrome()
-
             liker_nodes = []
 
             liker_start = 0

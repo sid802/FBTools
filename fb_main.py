@@ -2,6 +2,7 @@
 __author__ = 'Sid'
 from HTMLParser import HTMLParser
 import fb_constants as constants
+from selenium import webdriver
 
 class FBNode(object):
     def __init__(self, fid):
@@ -107,3 +108,18 @@ class FBParser(object):
             full_name = unicode(full_name_result[0])
 
         return FBUser(fid, full_name, username)
+
+    def quit(self):
+        """
+        :return: Close browser
+        """
+        self.driver.quit()
+        self.driver = None
+
+    @staticmethod
+    def browser_needed(func):
+        def func_wrapper(self, *args, **kwargs):
+            if self.driver is None:
+                self.driver = webdriver.Chrome()
+            return func(self, *args, **kwargs)
+        return func_wrapper
