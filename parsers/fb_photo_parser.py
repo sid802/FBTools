@@ -13,9 +13,8 @@ __author__ = 'Sid'
 
 from lxml import html
 
-from fb_main import *
 from parsers import fb_constants as constants
-
+from fb_main import *
 
 def _default_vs_new(default_val, new_val):
     """
