@@ -47,6 +47,7 @@ class PhotoParser(FBParser):
         :param extract_commenters: Boolean, extract commenters
         :param extract_comments: Boolean, extract comments
         :param extract_privacy: Boolean, extract privacy mode
+        All options default to True
         """
         self.photos_fids = photos_fids
         self.extract_taggees = extract_taggees
@@ -103,7 +104,16 @@ class PhotoParser(FBParser):
     @FBParser.browser_needed
     def run(self, email, password, extract_taggees=True, extract_likers=True, extract_commenters=True,
               extract_comments=True, extract_privacy=True):
-
+        """
+        :param email: email to connect with
+        :param password: password to connect with
+        :param extract_taggees: Boolean, extract tagged people
+        :param extract_likers: Boolean, extract likers
+        :param extract_commenters: Boolean, extract commenters
+        :param extract_comments: Boolean, extract comments
+        :param extract_privacy: Boolean, extract privacy mode
+        :return: List of FBPicture instances
+        """
 
         user_fid = self.init_connect(email, password)
         if user_fid is None:
