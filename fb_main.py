@@ -2,6 +2,7 @@
 __author__ = 'Sid'
 from HTMLParser import HTMLParser
 import fb_constants as constants
+import json
 from selenium import webdriver
 
 class FBNode(object):
@@ -115,6 +116,23 @@ class FBParser(object):
         """
         self.driver.quit()
         self.driver = None
+
+    def _parse_payload_from_ajax_response(self, ajax_response):
+        """
+        :param ajax_response: full response
+        :return: string of actual html response
+        """
+
+        full_json_match = constants.FBRegexes.json_from_html.search(ajax_response)  # Keep only json string
+        if not full_json_match:
+            return None
+
+        full_json = full_json_match.group()
+        json_dict = json.loads(full_json)
+        try:
+            return json_dict['jsmods']['markup'][0][1]['__html']
+        except Exception:
+            return None
 
     @staticmethod
     def browser_needed(func):
