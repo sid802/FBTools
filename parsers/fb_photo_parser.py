@@ -11,17 +11,11 @@ __author__ = 'Sid'
 #
 ##############################################
 
-from datetime import datetime
-from base64 import b64encode
-from HTMLParser import HTMLParser
-
-from selenium import webdriver
 from lxml import html
 
-import re, json
-from mysql import connector
 from fb_main import *
-import fb_constants as constants
+from parsers import fb_constants as constants
+
 
 def _default_vs_new(default_val, new_val):
     """

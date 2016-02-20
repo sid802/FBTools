@@ -1,9 +1,12 @@
 #-*- encoding: utf-8 -*-
 __author__ = 'Sid'
 from HTMLParser import HTMLParser
-import fb_constants as constants
 import json
+
 from selenium import webdriver
+
+from parsers import fb_constants as constants
+
 
 class FBNode(object):
     def __init__(self, fid):
