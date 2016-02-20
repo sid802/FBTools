@@ -64,15 +64,21 @@ class PhotoParser(FBParser):
         """
 
         base_url = 'https://facebook.com/{photo_id}'
-        current_url = base_url.format(phot_id=photo_id)
+        current_url = base_url.format(photo_id=photo_id)
         self.driver.get(current_url)
 
         tree = html.fromstring(self.driver.page_source)
-        privacy_result = tree.xpath(constants.FBXpaths.privacy)
 
+        privacy_result = tree.xpath(constants.FBXpaths.privacy_logged_in)
         if len(privacy_result) > 0:
             return self._info_from_url('privacy', privacy_result[0])
+
+        privacy_result = tree.xpath(constants.FBXpaths.privacy_not_logged_in)
+        if len(privacy_result) > 0:
+            return self._info_from_url('privacy', privacy_result[0])
+
         return None
+
 
     def parse_photo(self, photo_id, user_id, extract_taggees=True, extract_likers=True, extract_commenters=True,
               extract_sharers=True, extract_comments=True, extract_privacy=True):
@@ -142,7 +148,7 @@ class PhotoParser(FBParser):
         all_photos = []
 
         for photo_id in self.photos_fids:
-            current_photo = self.parse_photo(photo_id, user_id, extract_taggees, user_id,
+            current_photo = self.parse_photo(photo_id, user_id, extract_taggees,
                                   extract_likers, extract_commenters,
                                   extract_comments, extract_privacy)
             all_photos.append(current_photo)
@@ -262,4 +268,6 @@ if __name__ == '__main__':
     print 'Taggees:'
     for taggee in res[0].taggees:
         print taggee
+
+    print 'Privacy: {0}'.format(res[0].privacy)
 

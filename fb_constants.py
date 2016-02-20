@@ -5,7 +5,7 @@ import re
 class FBRegexes(object):
     my_fid = re.compile(r'"USER_ID":"(?P<result>\d+)')
     json_from_html = re.compile(r'(?P<json>\{.*\})', re.MULTILINE)
-    privacy = re.compile(r':(?P<privacy>.*)')
+    privacy = re.compile(r':\s*(?P<result>.*)')
 
     # Likers
     liker_fid_from_url = re.compile(r'php\?id=(?P<result>\d+)')  # url comes from user_fid_url xpath
@@ -23,5 +23,6 @@ class FBXpaths(object):
     user_fid_url = './@data-hovercard'  # Relative to liker_info_element
     user_username_url = './@href'
 
-    # General
-    privacy = '//div[contains(@aria-label,"Shared with")]/@aria-label'
+    # privacy
+    privacy_logged_in = '//div[contains(@aria-label,"Shared with")]/@aria-label'
+    privacy_not_logged_in = '//a[contains(@data-tooltip-content,"Shared")]/@data-tooltip-content'
