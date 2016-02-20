@@ -104,7 +104,8 @@ class PhotoParser(FBParser):
             cur_picture.likers = liker_parser.parse_photo_likers(photo_id, user_id)
 
         if extract_taggees:
-            taggee_parser = 1
+            taggee_parser = PhotoParser.FBPhotoTaggeeParser(self.driver)
+            cur_picture.taggees = taggee_parser.parse_photo_taggees(photo_id, user_id)
 
         return cur_picture
 
@@ -155,7 +156,45 @@ class PhotoParser(FBParser):
         def __init__(self, driver=None):
             self.driver = driver
 
-        # https://www.facebook.com/ajax/pagelet/generic.php/PhotoViewerInitPagelet?data={"fbid":"10206326013841853"}&__user=531721334&__a=1
+        @FBParser.browser_needed
+        def parse_photo_taggees(self, photo_id, user_id):
+            """
+            :param photo_id: Photo's FID
+            :param user_id: logged in user fid
+            :return: List of FBUsers who are tagged in the photo
+            """
+            taggee_nodes = []
+
+            html_payload = self._get_taggees_html(photo_id, user_id)
+            tree = html.fromstring(html_payload)
+
+            all_taggees = tree.xpath(constants.FBXpaths.user_taggee_links)
+            if len(all_taggees) > 0:
+                for taggee in all_taggees:
+                    current_taggee = self._parse_user_from_link(taggee)
+                    if not current_taggee in taggee_nodes:
+                        taggee_nodes.append(current_taggee)
+
+            return taggee_nodes
+
+        def _get_taggees_html(self, photo_id, user_id, liker_start=0):
+            """
+            :param photo_id: Photo fid
+            :param user_id: Logged in user id
+            :param liker_start: Index of liker to start parsing
+            :return: relevant html containing likers
+            """
+            base_url = 'https://www.facebook.com/ajax/pagelet/generic.php/PhotoViewerInitPagelet?data={{"fbid":"{photo_id}"}}&__user={user_id}&__a=1'
+
+            photo_url = base_url.format(photo_id=photo_id, user_id=user_id)
+            self.driver.get(photo_url)
+            page_source = self._parse_payload_from_ajax_response(self.driver.page_source)
+            if page_source is None:
+                return None
+            fixed_payload = self._fix_payload(page_source)
+            return fixed_payload
+
+
     class FBPhotoLikerParser(FBParser):
         """
         Parses a photo's likers
@@ -163,22 +202,6 @@ class PhotoParser(FBParser):
 
         def __init__(self, driver):
             self.driver = driver
-
-        def _parse_payload_from_ajax_response(self, ajax_response):
-            """
-            :param ajax_response: full response
-            """
-
-            full_json_match = constants.FBRegexes.json_from_html.search(ajax_response)  # Keep only json string
-            if not full_json_match:
-                return None
-
-            full_json = full_json_match.group()
-            json_dict = json.loads(full_json)
-            try:
-                return json_dict['jsmods']['markup'][0][1]['__html']
-            except Exception:
-                return None
 
         def _get_likers_html(self, photo_id, user_id, liker_start=0):
             """
@@ -202,7 +225,7 @@ class PhotoParser(FBParser):
             """
             :param photo_id: Photo's FID
             :param user_id: logged in user fid
-            :return: List of FBUsers
+            :return: List of FBUsers who liked the photo
             """
             liker_nodes = []
 
@@ -211,7 +234,7 @@ class PhotoParser(FBParser):
             html_payload = self._get_likers_html(photo_id, user_id, liker_start)
             tree = html.fromstring(html_payload)
 
-            all_likers = tree.xpath(constants.FBXpaths.likers)
+            all_likers = tree.xpath(constants.FBXpaths.user_liker_links)
             while len(all_likers) > 0:
                 for liker in all_likers:
                     current_liker = self._parse_user_from_link(liker)
@@ -221,7 +244,7 @@ class PhotoParser(FBParser):
                 liker_start += len(all_likers)
                 html_payload = self._get_likers_html(photo_id, user_id, liker_start)
                 tree = html.fromstring(html_payload)
-                all_likers = tree.xpath(constants.FBXpaths.likers)
+                all_likers = tree.xpath(constants.FBXpaths.user_liker_links)
 
             return liker_nodes
 
@@ -230,6 +253,12 @@ if __name__ == '__main__':
     ph_parser = PhotoParser(['10206326013841853'])
     res = ph_parser.run('sidfeiner@gmail.com', 'Qraaynem23')
     ph_parser.quit()
+
+    print 'Likers:'
     for liker in res[0].likers:
         print liker
+
+    print 'Taggees:'
+    for taggee in res[0].taggees:
+        print taggee
 
