@@ -26,3 +26,6 @@ class FBXpaths(object):
     # privacy
     privacy_logged_in = '//div[contains(@aria-label,"Shared with")]/@aria-label'
     privacy_not_logged_in = '//a[contains(@data-tooltip-content,"Shared")]/@data-tooltip-content'
+
+    # Photo author
+    photo_author = '//a[@class="profileLink"]'

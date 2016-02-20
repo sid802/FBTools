@@ -15,6 +15,7 @@ from lxml import html
 
 from parsers import fb_constants as constants
 from fb_main import *
+from fb_df import *
 
 def _default_vs_new(default_val, new_val):
     """
@@ -50,10 +51,10 @@ class PhotoParser(FBParser):
         self.extract_privacy = extract_privacy
 
     FBParser.browser_needed
-    def parse_photo_privacy(self, photo_id):
+    def parse_photo_meta(self, photo_id):
         """
         :param photo_id: Photo's FID
-        :return: Picture's privacy setting (friends/friends of friends/publci etc)
+        :return: Picture's privacy setting (friends/friends of friends/publci etc) and author
         """
 
         base_url = 'https://facebook.com/{photo_id}'
@@ -62,30 +63,37 @@ class PhotoParser(FBParser):
 
         tree = html.fromstring(self.driver.page_source)
 
+        author = privacy = None
+
+        author_result = tree.xpath(constants.FBXpaths.photo_author)
+        if len(author_result) > 0:
+            author = self._parse_user_from_link(author_result[0])
+
         privacy_result = tree.xpath(constants.FBXpaths.privacy_logged_in)
         if len(privacy_result) > 0:
-            return self._info_from_url('privacy', privacy_result[0])
+            privacy = self._info_from_url('privacy', privacy_result[0])
+        else:
+            privacy_result = tree.xpath(constants.FBXpaths.privacy_not_logged_in)
+            if len(privacy_result) > 0:
+                privacy = self._info_from_url('privacy', privacy_result[0])
 
-        privacy_result = tree.xpath(constants.FBXpaths.privacy_not_logged_in)
-        if len(privacy_result) > 0:
-            return self._info_from_url('privacy', privacy_result[0])
-
-        return None
+        return author, privacy
 
 
     def parse_photo(self, photo_id, user_id, extract_taggees=True, extract_likers=True, extract_commenters=True,
-              extract_sharers=True, extract_comments=True, extract_privacy=True):
+              extract_sharers=True, extract_comments=True):
         """
         :param photo_html: Current photo HTML
         :param extract_taggees: Boolean, extract tagged people
         :param extract_likers: Boolean, extract likers
         :param extract_commenters: Boolean, extract commenters
         :param extract_comments: Boolean, extract comments
-        :param extract_privacy: Boolean, extract privacy mode
         :return: FBPhoto instance of current photo
         """
 
         cur_picture = FBPicture(photo_id)
+
+        cur_picture.author, cur_picture.privacy = self.parse_photo_meta(photo_id)  # Returns tuple of (author, privacy)
 
         if extract_likers:
             liker_parser = PhotoParser.FBPhotoLikerParser(self.driver)
@@ -94,9 +102,6 @@ class PhotoParser(FBParser):
         if extract_taggees:
             taggee_parser = PhotoParser.FBPhotoTaggeeParser(self.driver)
             cur_picture.taggees = taggee_parser.parse_photo_taggees(photo_id, user_id)
-
-        if extract_privacy:
-            cur_picture.privacy = self.parse_photo_privacy(photo_id)
 
         return cur_picture
 
@@ -138,7 +143,7 @@ class PhotoParser(FBParser):
         extract_comments = _default_vs_new(self.extract_comments, extract_comments)
         extract_privacy = _default_vs_new(self.extract_privacy, extract_privacy)
 
-        all_photos = []
+        all_photos = FBPictureList()
 
         for photo_id in self.photos_fids:
             current_photo = self.parse_photo(photo_id, user_id, extract_taggees,
@@ -267,4 +272,5 @@ if __name__ == '__main__':
         print taggee
 
     print 'Privacy: {0}'.format(res[0].privacy)
+    print 'Author: {0}'.format(res[0].author)
 

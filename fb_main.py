@@ -9,7 +9,7 @@ from parsers import fb_constants as constants
 
 
 class FBNode(object):
-    def __init__(self, fid):
+    def __init__(self, fid=None):
         self.fid = fid
 
     def __repr__(self):
@@ -25,7 +25,7 @@ class FBNode(object):
         return False
 
 class FBUser(FBNode):
-    def __init__(self, fid, full_name, user_name=None, friends=None, current_city=None, home_town=None, phones=None,
+    def __init__(self, fid=None, full_name=None, user_name=None, friends=None, current_city=None, home_town=None, phones=None,
                  address=None, emails=None, birth_date=None, birth_year=None, gender=None, interested_in=None,
                  languages=None, family_members=None):
         super(FBUser, self).__init__(fid)
@@ -51,7 +51,7 @@ class FBUser(FBNode):
         return u'FID: {0}, username: {1}, full name: {2}'.format(self.fid, self.user_name, self.full_name)
 
 class FBPicture(FBNode):
-    def __init__(self, fid, author=None, taggees=None, likers=None, commenters=None, comments=None, sharers=None, privacy=None):
+    def __init__(self, fid=None, author=None, taggees=None, likers=None, commenters=None, comments=None, sharers=None, privacy=None):
         super(FBPicture, self).__init__(fid)
         self.author = author  # FBUser
         self.taggees = taggees  # List of FBUsers
