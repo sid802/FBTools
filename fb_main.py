@@ -67,6 +67,34 @@ class FBParser(object):
     _html_parser = HTMLParser()
     driver = None  # Will be initialized later
 
+    def init_connect(self, email, password):
+        """
+        Connect to facebook
+        return user fid if successfull, None otherwise
+        """
+        self.driver.get('https://facebook.com')
+
+        # set email
+        email_element = self.driver.find_element_by_id('email')
+        email_element.send_keys(email)
+
+        # set password
+        password_element = self.driver.find_element_by_id('pass')
+        password_element.send_keys(password)
+
+        # press login button
+        self.driver.find_element_by_id('loginbutton').click()
+
+        if 'attempt' in self.driver.current_url:
+            # Failed to log in
+            return None
+
+        my_id_match = constants.FBRegexes.my_fid.search(self.driver.page_source)
+        if my_id_match:
+            return my_id_match.group('result')
+
+        return None
+
     def _fix_payload(self, payload):
         """
         :param payload: html payload

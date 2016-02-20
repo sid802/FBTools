@@ -55,32 +55,22 @@ class PhotoParser(FBParser):
         self.extract_comments = extract_comments
         self.extract_privacy = extract_privacy
 
-    def init_connect(self, email, password):
+    FBParser.browser_needed
+    def parse_photo_privacy(self, photo_id):
         """
-        Connect to facebook
-        return user fid if successfull, None otherwise
+        :param photo_id: Photo's FID
+        :return: Picture's privacy setting (friends/friends of friends/publci etc)
         """
-        self.driver.get('https://facebook.com')
 
-        # set email
-        email_element = self.driver.find_element_by_id('email')
-        email_element.send_keys(email)
+        base_url = 'https://facebook.com/{photo_id}'
+        current_url = base_url.format(phot_id=photo_id)
+        self.driver.get(current_url)
 
-        # set password
-        password_element = self.driver.find_element_by_id('pass')
-        password_element.send_keys(password)
+        tree = html.fromstring(self.driver.page_source)
+        privacy_result = tree.xpath(constants.FBXpaths.privacy)
 
-        # press login button
-        self.driver.find_element_by_id('loginbutton').click()
-
-        if 'attempt' in self.driver.current_url:
-            # Failed to log in
-            return None
-
-        my_id_match = constants.FBRegexes.my_fid.search(self.driver.page_source)
-        if my_id_match:
-            return my_id_match.group('result')
-
+        if len(privacy_result) > 0:
+            return self._info_from_url('privacy', privacy_result[0])
         return None
 
     def parse_photo(self, photo_id, user_id, extract_taggees=True, extract_likers=True, extract_commenters=True,
@@ -95,8 +85,6 @@ class PhotoParser(FBParser):
         :return: FBPhoto instance of current photo
         """
 
-        taggees = likers = commenters = sharers = comments = privacy = None
-
         cur_picture = FBPicture(photo_id)
 
         if extract_likers:
@@ -106,6 +94,9 @@ class PhotoParser(FBParser):
         if extract_taggees:
             taggee_parser = PhotoParser.FBPhotoTaggeeParser(self.driver)
             cur_picture.taggees = taggee_parser.parse_photo_taggees(photo_id, user_id)
+
+        if extract_privacy:
+            cur_picture.privacy = self.parse_photo_privacy(photo_id)
 
         return cur_picture
 
