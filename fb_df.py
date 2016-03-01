@@ -2,13 +2,14 @@ __author__ = 'Sid'
 
 from fb_main import *
 import pandas as pd
+from matplotlib import pyplot as plt
 
 class TypeList(list):
     """
-    Custom List for FB Group Lists
+    List that accepts only specific types
     """
-    def __init__(self, class_object):
-        super(TypeList, self).__init__()
+    def __init__(self, class_object, data=list()):
+        super(TypeList, self).__init__(data)
         self.class_object = class_object
         self._df = None  # Cached DataFrame
 
@@ -40,16 +41,47 @@ class TypeList(list):
 
         return df
 
+class FBUserList(TypeList):
+    def __init__(self, data=list()):
+        super(FBUserList, self).__init__(FBUser, data)
+
 class FBPictureList(TypeList):
-    def __init__(self):
-        super(FBPictureList, self).__init__(FBPicture)
+    def __init__(self, data=list()):
+        super(FBPictureList, self).__init__(FBPicture, data)
+
+    def _plot_users(self, user_kind, *args, **kwargs):
+        """
+        :param user_kind: What kind of users to plot (likers/taggees/authors etc)
+        :return: Plot with x-axis of persons and y-axes as counter
+        """
+        pictures_df = self._to_dataframe(cache=False)
+
+        users_lst = []
+        for picture_index, picture_row in pictures_df.iterrows():
+            users = picture_row[user_kind]
+            for user in users:
+                users_lst.append((picture_index, user.fid, user.full_name))
+
+
+        likers_df = pd.DataFrame(columns=['fid', 'user_fid', 'user_fullname'], data=users_lst)
+        count = likers_df.groupby(by=['user_fid', 'user_fullname']).count()
+        plot = count[:10].plot.bar()
+        plt.show()
+        return plot
+
 
     def plot_likers(self, *args, **kwargs):
         """
         :return: Plot with x-axis of the person who liked, and y-axis of the amount of pictures he liked
         """
-        pictures_df = self._to_dataframe(cache=False)
-        pictures_df.likers.values()
+        return self._plot_users('likers')
+
+    def plot_taggees(self, *args, **kwargs):
+        """
+        :return: Plot with x-axis of the taggees, and y-axis of the amount of pictures he liked
+        """
+        return self._plot_users('taggees')
+
 
 
 
