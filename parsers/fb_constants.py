@@ -6,6 +6,7 @@ class FBRegexes(object):
     my_fid = re.compile(r'"USER_ID":"(?P<result>\d+)')
     json_from_html = re.compile(r'(?P<json>\{.*\})', re.MULTILINE)
     privacy = re.compile(r':\s*(?P<result>.*)')
+    picture_timestamp = re.compile(r'(?P<result>\d+),"text')
 
     # Likers
     liker_fid_from_url = re.compile(r'php\?id=(?P<result>\d+)')  # url comes from user_fid_url xpath

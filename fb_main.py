@@ -51,7 +51,8 @@ class FBUser(FBNode):
         return u'FID: {0}, username: {1}, full name: {2}'.format(self.fid, self.user_name, self.full_name)
 
 class FBPicture(FBNode):
-    def __init__(self, fid=None, author=None, taggees=None, likers=None, commenters=None, comments=None, sharers=None, privacy=None):
+    def __init__(self, fid=None, author=None, taggees=None, likers=None, published=None,
+                 commenters=None, comments=None, sharers=None, privacy=None):
         super(FBPicture, self).__init__(fid)
         self.author = author  # FBUser
         self.taggees = taggees  # List of FBUsers
@@ -60,6 +61,7 @@ class FBPicture(FBNode):
         self.sharers = sharers  # List of FBUsers
         self.privacy = privacy  # String
         self.comments = comments  # List of FBComments
+        self.published = published  # datetime object
 
 
 class FBParser(object):
@@ -153,16 +155,22 @@ class FBParser(object):
         :param ajax_response: full response
         :return: string of actual html response
         """
-
+        print 'full response:', ajax_response
         full_json_match = constants.FBRegexes.json_from_html.search(ajax_response)  # Keep only json string
         if not full_json_match:
             return None
 
         full_json = full_json_match.group()
+        print 'json:', full_json
         json_dict = json.loads(full_json)
         try:
             return json_dict['jsmods']['markup'][0][1]['__html']
         except Exception:
+            try:
+                error = json['jsmods']['require'][1][3][0]['__html']
+            except Exception:
+                error = 'Couldnt parse from picture'
+            raise JSONParseError(error)
             return None
 
     @staticmethod
@@ -172,3 +180,7 @@ class FBParser(object):
                 self.driver = webdriver.Chrome()
             return func(self, *args, **kwargs)
         return func_wrapper
+
+class JSONParseError(Exception):
+    def __init__(self, message):
+        super(JSONParseError, self).__init__(message)

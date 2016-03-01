@@ -16,6 +16,7 @@ from lxml import html
 from parsers import fb_constants as constants
 from fb_main import *
 from fb_df import *
+from datetime import datetime
 
 def _default_vs_new(default_val, new_val):
     """
@@ -60,10 +61,10 @@ class PhotoParser(FBParser):
         base_url = 'https://facebook.com/{photo_id}'
         current_url = base_url.format(photo_id=photo_id)
         self.driver.get(current_url)
-
+        print self.driver.page_source
         tree = html.fromstring(self.driver.page_source)
 
-        author = privacy = None
+        author = privacy = pic_published = None
 
         author_result = tree.xpath(constants.FBXpaths.photo_author)
         if len(author_result) > 0:
@@ -77,7 +78,13 @@ class PhotoParser(FBParser):
             if len(privacy_result) > 0:
                 privacy = self._info_from_url('privacy', privacy_result[0])
 
-        return author, privacy
+        timestamp_match = constants.FBRegexes.picture_timestamp.search(self.driver.page_source)
+        if timestamp_match is not None:
+            timestamp = int(timestamp_match.group('result'))
+            pic_published = datetime.fromtimestamp(timestamp)
+
+
+        return author, privacy, pic_published
 
 
     def parse_photo(self, photo_id, user_id, extract_taggees=True, extract_likers=True, extract_commenters=True,
@@ -93,7 +100,7 @@ class PhotoParser(FBParser):
 
         cur_picture = FBPicture(photo_id)
 
-        cur_picture.author, cur_picture.privacy = self.parse_photo_meta(photo_id)  # Returns tuple of (author, privacy)
+        cur_picture.author, cur_picture.privacy, cur_picture.published = self.parse_photo_meta(photo_id)  # Returns tuple of (author, privacy)
 
         if extract_likers:
             liker_parser = PhotoParser.FBPhotoLikerParser(self.driver)
@@ -168,10 +175,14 @@ class PhotoParser(FBParser):
             :param user_id: logged in user fid
             :return: List of FBUsers who are tagged in the photo
             """
-            taggee_nodes = []
+            taggee_nodes = FBUserList()
 
             html_payload = self._get_taggees_html(photo_id, user_id)
-            tree = html.fromstring(html_payload)
+            try:
+                tree = html.fromstring(html_payload)
+            except Exception, e:
+                print str(e)
+                raise Exception()
 
             all_taggees = tree.xpath(constants.FBXpaths.user_taggee_links)
             if len(all_taggees) > 0:
@@ -194,6 +205,7 @@ class PhotoParser(FBParser):
             photo_url = base_url.format(photo_id=photo_id, user_id=user_id)
             self.driver.get(photo_url)
             page_source = self._parse_payload_from_ajax_response(self.driver.page_source)
+            print 'after response parse:', page_source
             if page_source is None:
                 return None
             fixed_payload = self._fix_payload(page_source)
@@ -232,11 +244,12 @@ class PhotoParser(FBParser):
             :param user_id: logged in user fid
             :return: List of FBUsers who liked the photo
             """
-            liker_nodes = []
+            liker_nodes = FBUserList()
 
             liker_start = 0
 
             html_payload = self._get_likers_html(photo_id, user_id, liker_start)
+            print html_payload
             tree = html.fromstring(html_payload)
 
             all_likers = tree.xpath(constants.FBXpaths.user_liker_links)
@@ -248,6 +261,7 @@ class PhotoParser(FBParser):
 
                 liker_start += len(all_likers)
                 html_payload = self._get_likers_html(photo_id, user_id, liker_start)
+                print html_payload
                 tree = html.fromstring(html_payload)
                 all_likers = tree.xpath(constants.FBXpaths.user_liker_links)
 
@@ -255,13 +269,17 @@ class PhotoParser(FBParser):
 
 
 if __name__ == '__main__':
-    ph_parser = PhotoParser(['10206326013841853'])
+    #ph_parser = PhotoParser(['10207797509032540', '10153908354537528', '10153761999401335', '10153699836666335'], True, False, False, False, True)
+    ph_parser = PhotoParser(['10153908354537528'], True, False, False, False, True)
+
 
     email = raw_input('Enter Email: ')
     password = raw_input('Enter password: ')
 
     res = ph_parser.run(email, password)
     ph_parser.quit()
+
+    res.plot_likers(kind='bar')
 
     print 'Likers:'
     for liker in res[0].likers:
@@ -273,4 +291,5 @@ if __name__ == '__main__':
 
     print 'Privacy: {0}'.format(res[0].privacy)
     print 'Author: {0}'.format(res[0].author)
+    print 'Published: {0}'.format(res[0].published)
 
