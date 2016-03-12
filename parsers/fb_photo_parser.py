@@ -69,7 +69,7 @@ class PhotoParser(FBParser):
         #print self.driver.page_source
         tree = html.fromstring(self.driver.page_source)
 
-        author = privacy = pic_published = None
+        author = privacy = pic_published = caption = None
 
         # Pic's Author
         author_result = tree.xpath(constants.FBXpaths.photo_author)
@@ -285,7 +285,7 @@ class PhotoParser(FBParser):
 
 if __name__ == '__main__':
     #ph_parser = PhotoParser(['10207797509032540', '10153908354537528', '10153761999401335', '10153699836666335'], True, False, False, False, True)
-    ph_parser = PhotoParser(['10206983940571331'], True, False, False, False, True)
+    ph_parser = PhotoParser(['4632429683101'], None, True, False, False, False, True)
 
 
     email = raw_input('Enter Email: ')

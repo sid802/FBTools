@@ -18,7 +18,8 @@ class FBRegexes(object):
 class FBXpaths(object):
 
     # User links
-    user_liker_links = '//li[@class="fbProfileBrowserListItem"]//a[@data-gt]'
+    #user_liker_links = '//li[@class="fbProfileBrowserListItem"]//a[@data-gt]'
+    user_liker_links = '//a[@data-gt]'
     user_taggee_links = '//a[@class="taggee"]'
 
     # User link parts
