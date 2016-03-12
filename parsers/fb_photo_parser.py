@@ -15,25 +15,16 @@ from lxml import html
 
 from parsers import fb_constants as constants
 from fb_main import *
+from fb_main import _default_vs_new
 from fb_df import *
 from datetime import datetime
-
-def _default_vs_new(default_val, new_val):
-    """
-    :param default_val: Default value
-    :param new_val: New Value
-    :return: new_val if not null, default otherwise
-    """
-    if new_val is not None:
-        return new_val
-    return default_val
 
 class PhotoParser(FBParser):
     """
     Class to parse photo's metadata
     """
 
-    def __init__(self, photos_fids, extract_taggees=True, extract_likers=True, extract_commenters=True,
+    def __init__(self, photos_fids=None, album_ids=None, extract_taggees=True, extract_likers=True, extract_commenters=True,
                  extract_comments=True, extract_privacy=True):
         """
         :param photos_fids: List of picture fb_ids
@@ -45,13 +36,27 @@ class PhotoParser(FBParser):
         All options default to True
         """
         self.photos_fids = photos_fids
+        self.album_ids = album_ids
         self.extract_taggees = extract_taggees
         self.extract_likers = extract_likers
         self.extract_commenters = extract_commenters
         self.extract_comments = extract_comments
         self.extract_privacy = extract_privacy
 
-    FBParser.browser_needed
+    @FBParser.browser_needed
+    def from_album(self, album_id):
+        """
+        :param album_id: Photo Album ID
+                         When looking at the url param: set=a.10207797332908137.1073741831.1138852054
+                         the album_id is 10207797332908137
+        :returns: Adds relevant photo id's to self.photos_fids
+        """
+
+        pass
+
+
+
+    @FBParser.browser_needed
     def parse_photo_meta(self, photo_id):
         """
         :param photo_id: Photo's FID
@@ -61,7 +66,7 @@ class PhotoParser(FBParser):
         base_url = 'https://facebook.com/{photo_id}'
         current_url = base_url.format(photo_id=photo_id)
         self.driver.get(current_url)
-        print self.driver.page_source
+        #print self.driver.page_source
         tree = html.fromstring(self.driver.page_source)
 
         author = privacy = pic_published = None
@@ -205,7 +210,7 @@ class PhotoParser(FBParser):
             photo_url = base_url.format(photo_id=photo_id, user_id=user_id)
             self.driver.get(photo_url)
             page_source = self._parse_payload_from_ajax_response(self.driver.page_source)
-            print 'after response parse:', page_source
+            #print 'after response parse:', page_source
             if page_source is None:
                 return None
             fixed_payload = self._fix_payload(page_source)
@@ -249,7 +254,7 @@ class PhotoParser(FBParser):
             liker_start = 0
 
             html_payload = self._get_likers_html(photo_id, user_id, liker_start)
-            print html_payload
+            #print html_payload
             tree = html.fromstring(html_payload)
 
             all_likers = tree.xpath(constants.FBXpaths.user_liker_links)
@@ -261,7 +266,7 @@ class PhotoParser(FBParser):
 
                 liker_start += len(all_likers)
                 html_payload = self._get_likers_html(photo_id, user_id, liker_start)
-                print html_payload
+                #print html_payload
                 tree = html.fromstring(html_payload)
                 all_likers = tree.xpath(constants.FBXpaths.user_liker_links)
 
@@ -270,7 +275,7 @@ class PhotoParser(FBParser):
 
 if __name__ == '__main__':
     #ph_parser = PhotoParser(['10207797509032540', '10153908354537528', '10153761999401335', '10153699836666335'], True, False, False, False, True)
-    ph_parser = PhotoParser(['10153908354537528'], True, False, False, False, True)
+    ph_parser = PhotoParser(['10207797509032540'], True, False, False, False, True)
 
 
     email = raw_input('Enter Email: ')
