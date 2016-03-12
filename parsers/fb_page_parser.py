@@ -94,7 +94,7 @@ class PageParser(FBParser):
 
         parse_likers = _default_vs_new(self.parse_likers, parse_likers)
 
-        all_pages = []
+        all_pages = FBPageList()
 
         for page_id in self.pages_ids:
             page = self.parse_page(page_id, parse_likers)
