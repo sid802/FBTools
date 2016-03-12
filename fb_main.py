@@ -52,10 +52,11 @@ class FBUser(FBNode):
 
 class FBPicture(FBNode):
     def __init__(self, fid=None, author=None, taggees=None, likers=None, published=None,
-                 commenters=None, comments=None, sharers=None, privacy=None):
+                 caption=None, commenters=None, comments=None, sharers=None, privacy=None):
         super(FBPicture, self).__init__(fid)
         self.author = author  # FBUser
         self.taggees = taggees  # List of FBUsers
+        self.caption = caption
         self.commenters = commenters  # List of FBUsers
         self.likers = likers  # List of FBUsers
         self.sharers = sharers  # List of FBUsers

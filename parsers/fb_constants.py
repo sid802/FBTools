@@ -32,6 +32,8 @@ class FBXpaths(object):
 
     # Photo author
     photo_author = '//a[@class="profileLink"]'
+    photo_caption_theater = '//span[@class="hasCaption"]//text()'
+    photo_caption_normal = '//div[contains(@class,"userContentWrapper")]//div[contains(@class,"userContent")]//text()'
 
     # Pages
     page_title = '//h1/span[1]/text()'

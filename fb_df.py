@@ -45,6 +45,10 @@ class FBUserList(TypeList):
     def __init__(self, data=list()):
         super(FBUserList, self).__init__(FBUser, data)
 
+class FBPageList(TypeList):
+    def __init__(self, data=list()):
+        super(FBPageList, self).__init__(FBPage, data)
+
 class FBPictureList(TypeList):
     def __init__(self, data=list()):
         super(FBPictureList, self).__init__(FBPicture, data)

@@ -60,7 +60,7 @@ class PhotoParser(FBParser):
     def parse_photo_meta(self, photo_id):
         """
         :param photo_id: Photo's FID
-        :return: Picture's privacy setting (friends/friends of friends/publci etc) and author
+        :return: Picture's privacy setting (friends/friends of friends/publci etc), author, date published and caption
         """
 
         base_url = 'https://facebook.com/{photo_id}'
@@ -71,10 +71,12 @@ class PhotoParser(FBParser):
 
         author = privacy = pic_published = None
 
+        # Pic's Author
         author_result = tree.xpath(constants.FBXpaths.photo_author)
         if len(author_result) > 0:
             author = self._parse_user_from_link(author_result[0])
 
+        # Pic's privacy
         privacy_result = tree.xpath(constants.FBXpaths.privacy_logged_in)
         if len(privacy_result) > 0:
             privacy = self._info_from_url('privacy', privacy_result[0])
@@ -83,13 +85,20 @@ class PhotoParser(FBParser):
             if len(privacy_result) > 0:
                 privacy = self._info_from_url('privacy', privacy_result[0])
 
+        # Pic's date published
         timestamp_match = constants.FBRegexes.picture_timestamp.search(self.driver.page_source)
         if timestamp_match is not None:
             timestamp = int(timestamp_match.group('result'))
             pic_published = datetime.fromtimestamp(timestamp)
 
+        # Caption
+        caption_match = tree.xpath(constants.FBXpaths.photo_caption_normal)
+        if len(caption_match) == 0:
+            caption_match = tree.xpath(constants.FBXpaths.photo_caption_theater)
+        if len(caption_match) > 0:
+            caption = ''.join(caption_match)
 
-        return author, privacy, pic_published
+        return author, privacy, pic_published, caption
 
 
     def parse_photo(self, photo_id, user_id, extract_taggees=True, extract_likers=True, extract_commenters=True,
@@ -105,7 +114,8 @@ class PhotoParser(FBParser):
 
         cur_picture = FBPicture(photo_id)
 
-        cur_picture.author, cur_picture.privacy, cur_picture.published = self.parse_photo_meta(photo_id)  # Returns tuple of (author, privacy)
+        cur_picture.author, cur_picture.privacy, cur_picture.published, cur_picture.caption = \
+            self.parse_photo_meta(photo_id)  # Returns tuple of (author, privacy, date published, caption)
 
         if extract_likers:
             liker_parser = PhotoParser.FBPhotoLikerParser(self.driver)
@@ -275,7 +285,7 @@ class PhotoParser(FBParser):
 
 if __name__ == '__main__':
     #ph_parser = PhotoParser(['10207797509032540', '10153908354537528', '10153761999401335', '10153699836666335'], True, False, False, False, True)
-    ph_parser = PhotoParser(['10207797509032540'], True, False, False, False, True)
+    ph_parser = PhotoParser(['10206983940571331'], True, False, False, False, True)
 
 
     email = raw_input('Enter Email: ')
