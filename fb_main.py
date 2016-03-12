@@ -63,6 +63,16 @@ class FBPicture(FBNode):
         self.comments = comments  # List of FBComments
         self.published = published  # datetime object
 
+class FBPage(FBNode):
+    def __init__(self, fid=None, page_user=None, page_title=None, likers=None, likers_amount=None,
+                 short_description=None, long_description=None):
+        super(FBPage, self).__init__(fid)
+        self.page_user = page_user
+        self.page_title = page_title
+        self.likers = likers
+        self.likers_amount = likers_amount
+        self.short_description= short_description
+        self.long_description = long_description
 
 class FBParser(object):
     """
@@ -162,7 +172,10 @@ class FBParser(object):
 
         full_json = full_json_match.group()
         print 'json:', full_json
-        json_dict = json.loads(full_json)
+        try:
+            json_dict = json.loads(full_json)
+        except Exception, e:
+            pass
         try:
             return json_dict['jsmods']['markup'][0][1]['__html']
         except Exception:
@@ -184,3 +197,13 @@ class FBParser(object):
 class JSONParseError(Exception):
     def __init__(self, message):
         super(JSONParseError, self).__init__(message)
+
+def _default_vs_new(default_val, new_val):
+    """
+    :param default_val: Default value
+    :param new_val: New Value
+    :return: new_val if not null, default otherwise
+    """
+    if new_val is not None:
+        return new_val
+    return default_val
