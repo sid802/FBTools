@@ -35,7 +35,8 @@ class FBXpaths(object):
 
     # Pages
     page_title = '//h1/span[1]/text()'
-    page_likers_amount = '//a[contains(@href,"likes")]/div[1]'
+    page_likers_amount = '//a[contains(@href,"likes")]/div[1]/text()'
+    page_likers_amount_secondary = '//span[@id="PagesLikesCountDOMID"]//text()'
     page_short_desc = '//div[contains(text(), "Short Description")]/../../div[2]/div/text()'
     page_desc_is_split = '//span[@class="text_exposed_show"]'
     page_long_desc_split = '(//div[contains(text(), "Long Desc")]/../../div[2]//*[not(contains(@class,"hide"))]/text())[position() <=2]'

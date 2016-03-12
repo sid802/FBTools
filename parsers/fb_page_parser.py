@@ -49,6 +49,10 @@ class PageParser(FBParser):
 
         # Page's likers amount
         match = tree.xpath(constants.FBXpaths.page_likers_amount)
+        if len(match) == 0:
+            # Try second xpath
+            match = tree.xpath(constants.FBXpaths.page_likers_amount_secondary)
+
         if len(match) > 0:
             likers_amount_string = match[0]
             likers_amount_digits = re.sub(r'\D', '', likers_amount_string)  # example: '8,475 people liked this' -> '8475'
@@ -57,11 +61,12 @@ class PageParser(FBParser):
         self.driver.get(BASE_URL.format(fid=page_id,
                                         tab='info')
                         )
+        tree = html.fromstring(self.driver.page_source)
 
         # Page's short description
         match = tree.xpath(constants.FBXpaths.page_short_desc)
         if len(match) > 0:
-            page.short_desc = ''.join(match)
+            page.short_description = ''.join(match)
 
         # Page's long description
         match = tree.xpath(constants.FBXpaths.page_desc_is_split)
@@ -72,7 +77,7 @@ class PageParser(FBParser):
             long_desc_list = tree.xpath(constants.FBXpaths.page_long_desc_unified)  # Returns list of text
 
         if len(long_desc_list) > 0:
-            page.long_desc = ''.join(match)
+            page.long_description = ''.join(long_desc_list)
 
         return page
 
@@ -100,5 +105,6 @@ class PageParser(FBParser):
 parser = PageParser(['65879791704', '843603385676595'], False)
 pages = parser.run('sidfeiner@gmail.com', 'Qraaynem23')
 for page in pages:
+    print
     for attr, val in page.__dict__.iteritems():
         print "{0}: {1}".format(attr, val)
