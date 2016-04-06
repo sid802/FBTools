@@ -163,7 +163,7 @@ class FBParser(object):
         self.driver.quit()
         self.driver = None
 
-    def _parse_payload_from_ajax_response(self, ajax_response, source):
+    def _parse_payload_from_ajax_response(self, ajax_response, source=None):
         """
         :param ajax_response: full response
         :param source: what do we parse (page/friends etc)
@@ -185,6 +185,8 @@ class FBParser(object):
         try:
             if source == 'friends':
                 return json_dict['payload']
+            elif source == 'mutual_friends':
+                return json_dict['domops'][0][3]['__html']
             return json_dict['jsmods']['markup'][0][1]['__html']
         except Exception:
             try:

@@ -28,9 +28,9 @@ class FriendsParser(FBParser):
         """
 
         friends_normal = self._parse_friends_normal(fb_user, extract_friends_infos)  # People in friends list
-        #covers_likers = self._parse_cover_likers(fb_user, extract_friends_infos)  # People who liked the cover pictures
+        covers_likers = self._parse_cover_likers(fb_user, extract_friends_infos)  # People who liked the cover pictures
 
-        basic_friends = friends_normal.intersection_update(covers_likers)
+        basic_friends = friends_normal.union(covers_likers)
         all_mutuals = set()
 
         for friend in basic_friends:
@@ -46,9 +46,10 @@ class FriendsParser(FBParser):
         """
         :param fb_user: FBUser instance of user we want to extract its friends
         :param extract_friends_infos: boolean, to extract the friend's basic infos
-        :return: List of all people who liked the fb_user's cover pictures
+        :return: Set of all people who liked the fb_user's cover pictures
         """
         #TODO: write
+        return set()
         pass
 
     @FBParser.browser_needed
@@ -67,8 +68,9 @@ class FriendsParser(FBParser):
         last_friend_fid = ''
 
         all_friends = set()  # List of FBUser's
+        currently_added = 1
 
-        while True:
+        while currently_added != 0:
             # Break when friends page is empty
             currently_added = 0
             current_url = BASE_URL.format(
@@ -80,7 +82,7 @@ class FriendsParser(FBParser):
 
             html_payload = self._parse_payload_from_ajax_response(self.driver.page_source, 'friends')
             if html_payload is None:
-                return []
+                return all_friends
 
             html_payload = self._fix_payload(html_payload)
             tree = html.fromstring(html_payload)
@@ -89,12 +91,8 @@ class FriendsParser(FBParser):
             for friend_element in friends_elements:
                 friend = self._parse_user_from_link(friend_element)
                 last_friend_fid = friend.fid
-                if not friend in all_friends:
-                    currently_added += 1
                 all_friends.add(friend)
-
-            if currently_added == 0:
-                break
+                currently_added += 1
 
         return all_friends
 
@@ -108,16 +106,37 @@ class FriendsParser(FBParser):
 
         offset = 0
 
-        BASE_URL = 'https://www.facebook.com/ajax/browser/list/mutualfriends/?uid={id1}&node={id2}&start={offset}&__user={user}&__a=1'.format(
-            id1=user_target.fid,
-            id2=user_friend.fid,
-            offset=offset,
-            user=self._user_id
-        )
+        BASE_URL = 'https://www.facebook.com/ajax/browser/list/mutualfriends/?uid={id1}&node={id2}&start={offset}&__user={user}&__a=1'
 
         self.driver.get(BASE_URL)
 
-        #TODO: continue writing. each request returns 30 friends so that's the number we have to increment "start" parameter with
+        currently_added = 1
+        all_mutuals = set()
+
+        while currently_added != 0:
+            currently_added = 0
+            current_url = BASE_URL.format(id1=user_target.fid,
+                                          id2=user_friend.fid,
+                                          offset=offset,
+                                          user=self._user_id)
+
+            self.driver.get(current_url)
+            html_payload = self._parse_payload_from_ajax_response(self.driver.page_source, 'mutual_friends')
+            if html_payload is None or len(html_payload) == 0:
+                # None or blank string
+                return all_mutuals
+            html_payload = self._fix_payload(html_payload)
+            tree = html.fromstring(html_payload)
+
+            friends_elements = tree.xpath(constants.FBXpaths.friends_links)
+            for friend_element in friends_elements:
+                friend = self._parse_user_from_link(friend_element)
+                all_mutuals.add(friend)
+                currently_added += 1
+
+            offset += currently_added  # Increment offset
+
+        return all_mutuals
 
     @FBParser.browser_needed
     def run(self, email, password, extract_friends_infos=None):
@@ -133,7 +152,7 @@ class FriendsParser(FBParser):
         extract_friends_infos = _default_vs_new(self.extract_friends_infos, extract_friends_infos)
 
         for user_target in self.user_targets:
-            user_friends = self._parse_friends(user_target, extract_friends_infos)
+            user_friends = self.parse_friends(user_target, extract_friends_infos)
             user_target.friends = user_friends
 
         return self.user_targets
