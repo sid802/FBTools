@@ -18,6 +18,7 @@ class PageParser(FBParser):
         :param parse_likers: (boolean), whether to parse the users
         :return:
         """
+        super(PageParser, self).__init__()
         self.pages_ids = pages_ids
         self.parse_likers = parse_likers
 
@@ -90,7 +91,7 @@ class PageParser(FBParser):
         :return: List of pages metadata
         """
 
-        self.init_connect(email, password)
+        user_id = self.init_connect(email, password)
 
         parse_likers = _default_vs_new(self.parse_likers, parse_likers)
 
@@ -103,7 +104,7 @@ class PageParser(FBParser):
         return all_pages
 
 parser = PageParser(['65879791704', '843603385676595'], False)
-pages = parser.run('sidfeiner@gmail.com', 'Qraaynem23')
+pages = parser.run('XXXXXX', 'YYYYY')
 for page in pages:
     print
     for attr, val in page.__dict__.iteritems():

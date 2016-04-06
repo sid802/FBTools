@@ -35,6 +35,7 @@ class PhotoParser(FBParser):
         :param extract_privacy: Boolean, extract privacy mode
         All options default to True
         """
+        super(PhotoParser, self).__init__()
         self.photos_fids = photos_fids
         self.album_ids = album_ids
         self.extract_taggees = extract_taggees

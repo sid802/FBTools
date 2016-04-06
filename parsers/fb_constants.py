@@ -36,6 +36,9 @@ class FBXpaths(object):
     photo_caption_theater = '//span[@class="hasCaption"]//text()'
     photo_caption_normal = '//div[contains(@class,"userContentWrapper")]//div[contains(@class,"userContent")]//text()'
 
+    # Friends
+    friends_links = '//div/a[@data-gt and @data-hovercard]'
+
     # Pages
     page_title = '//h1/span[1]/text()'
     page_likers_amount = '//a[contains(@href,"likes")]/div[1]/text()'

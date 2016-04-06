@@ -18,7 +18,7 @@ class FBNode(object):
     def __unicode__(self):
         return u'FID: {0}'.format(unicode(self.fid))
     def __hash__(self):
-        return self.fid
+        return hash(self.fid)
     def __eq__(self, other):
         if isinstance(other, FBNode) and self.fid == other.fid:
             return True
@@ -80,8 +80,10 @@ class FBParser(object):
     General FB Parser
     """
 
-    _html_parser = HTMLParser()
-    driver = None  # Will be initialized later
+    def __init__(self):
+        self.driver = None  # Will be initialized later
+        self._html_parser = HTMLParser()
+        self._user_id = None  # Will be initialized later
 
     def init_connect(self, email, password):
         """
@@ -161,9 +163,10 @@ class FBParser(object):
         self.driver.quit()
         self.driver = None
 
-    def _parse_payload_from_ajax_response(self, ajax_response):
+    def _parse_payload_from_ajax_response(self, ajax_response, source):
         """
         :param ajax_response: full response
+        :param source: what do we parse (page/friends etc)
         :return: string of actual html response
         """
         print 'full response:', ajax_response
@@ -171,13 +174,17 @@ class FBParser(object):
         if not full_json_match:
             return None
 
-        full_json = full_json_match.group()
+        full_json = full_json_match.group('json')
         print 'json:', full_json
         try:
             json_dict = json.loads(full_json)
         except Exception, e:
-            pass
+            print 'Could not load json'
+            return None
+
         try:
+            if source == 'friends':
+                return json_dict['payload']
             return json_dict['jsmods']['markup'][0][1]['__html']
         except Exception:
             try:
