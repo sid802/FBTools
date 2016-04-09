@@ -158,8 +158,8 @@ class FriendsParser(FBParser):
         return self.user_targets
 
 if __name__ == '__main__':
-    parser = FriendsParser([FBUser('1019507198')])
-    targets = parser.run('sidfeiner@gmail.com', 'Qraaynem23')
+    parser = FriendsParser([FBUser('XXXXX')])
+    targets = parser.run('XXXXX', 'XXXX')
     for target in targets:
         for friend in target.friends:
             print friend
