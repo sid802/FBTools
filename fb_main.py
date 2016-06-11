@@ -44,6 +44,20 @@ class FBUser(FBNode):
         self.languages = languages  # List of string
         self.family_members = family_members  # List of FBUsers
 
+    def import_to_db(self, cursor):
+        """
+        :param cursor: cursor to DB
+        Imports some fields to a DB
+        """
+
+        USER_INSERT = r"INSERT INTO USERS(ID, USER_NAME, FULL_NAME) " \
+                          r"VALUES(%(id)s, %(username)s, %(fullname)s) " \
+                          r"ON DUPLICATE KEY UPDATE USER_NAME=%(username)s, FULL_NAME=%(fullname)s"
+
+        cursor.execute(USER_INSERT, {
+            'id': self.fid, 'username': self.user_name, 'fullname': self.full_name
+        })
+
     def __repr__(self):
         return self.__unicode__().encode('utf-8')
 
@@ -74,6 +88,34 @@ class FBPage(FBNode):
         self.likers_amount = likers_amount
         self.short_description= short_description
         self.long_description = long_description
+
+class FBGroup(FBNode):
+    def __init__(self, fbid, group_user=None, group_title=None, privacy=None, description=None,
+                 category=None, members_amount=None, members=None):
+        super(FBGroup, self).__init__(fbid)
+        self.group_user = group_user  # username (string)
+        self.group_title = group_title  # full name (string)
+        self.privacy = privacy  # string
+        self.description = description  # string
+        self.members_amount = members_amount  # int
+        self.members = members  # list of FBUsers
+        self.category = category  # Category (string)
+
+    def import_to_db(self, cursor):
+        """
+        :param cursor: cursor to DB
+        imports some fields to DB
+        """
+
+        GROUP_INSERT = r"INSERT INTO GROUPS(ID, NAME_R, USERNAME, DESCRIPTION, CATEGORY, PRIVACY, MEMBERS_AMOUNT)" \
+                       r"VALUES(%(id)s, %(name)s, %(user)s, %(desc)s, %(cat)s, %(priv)s, %(members)s) " \
+                       r"ON DUPLICATE KEY UPDATE NAME_R=%(name)s, MEMBERS_AMOUNT=%(members)s"
+
+        cursor.execute(GROUP_INSERT, {
+            'id': self.fid, 'name': self.group_title, 'user': self.group_user, 'desc': self.description,
+            'cat': self.category, 'priv': self.category, 'members': self.members_amount
+        })
+
 
 class FBParser(object):
     """
@@ -185,8 +227,10 @@ class FBParser(object):
         try:
             if source == 'friends':
                 return json_dict['payload']
-            elif source == 'mutual_friends':
+            elif source in ['group', 'mutual_friends']:
                 return json_dict['domops'][0][3]['__html']
+            elif source == 'group':
+                return json_dict
             return json_dict['jsmods']['markup'][0][1]['__html']
         except Exception:
             try:
