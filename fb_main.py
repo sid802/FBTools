@@ -107,7 +107,7 @@ class FBGroup(FBNode):
         imports some fields to DB
         """
 
-        GROUP_INSERT = r"INSERT INTO GROUPS(ID, NAME_R, USERNAME, DESCRIPTION, CATEGORY, PRIVACY, MEMBERS_AMOUNT)" \
+        GROUP_INSERT = r"INSERT INTO GROUPS(ID, NAME_R, USERNAME, DESCRIPTION, CATEGORY, PRIVACY, MEMBERS_AMOUNT) " \
                        r"VALUES(%(id)s, %(name)s, %(user)s, %(desc)s, %(cat)s, %(priv)s, %(members)s) " \
                        r"ON DUPLICATE KEY UPDATE NAME_R=%(name)s, USERNAME=%(user)s," \
                        r"DESCRIPTION=%(desc)s, CATEGORY=%(cat)s, PRIVACY=%(priv)s, MEMBERS_AMOUNT=%(members)s"

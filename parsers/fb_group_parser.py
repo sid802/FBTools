@@ -131,7 +131,7 @@ class FBGroupParser(FBParser):
 
         try:
             GROUP_MEMBER_INSERT = r"INSERT INTO GROUP_MEMBERS (GROUP_ID, USER_ID, INSERTION_TIME) " \
-                                  r"VALUES (%(g_id)s, %(u_id)s), %(time)s)"
+                                  r"VALUES (%(g_id)s, %(u_id)s, %(time)s)"
             group.import_to_db(cursor)  # Import/Update row in DB
             load_time = datetime.now()
 
