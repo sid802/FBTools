@@ -91,7 +91,7 @@ class PageParser(FBParser):
         :return: List of pages metadata
         """
 
-        user_id = self.init_connect(email, password)
+        self._user_id = self.init_connect(email, password)
 
         parse_likers = _default_vs_new(self.parse_likers, parse_likers)
 
