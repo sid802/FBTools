@@ -140,7 +140,8 @@ class FBGroupParser(FBParser):
                 cursor.execute(GROUP_MEMBER_INSERT, {
                     'g_id': group.fid, 'u_id': user.fid, 'time': load_time
                 })
-        except connector.IntegrityError, e:
+        except Exception, e:
+            print str(e)
             print "Failed to load {0} to DB".format(group.fid)
 
     def import_groups(self, groups):
