@@ -5,7 +5,10 @@ from fb_main import *
 from fb_main import _default_vs_new
 from fb_df import *
 import re
+from time import sleep
 from datetime import datetime
+from mysql import connector
+
 
 class FBGroupParser(FBParser):
     """
@@ -26,27 +29,36 @@ class FBGroupParser(FBParser):
 
         BASE_URL = 'https://facebook.com/{fid}'
         self.driver.get(BASE_URL.format(fid=group_id))
-
         group = FBGroup(group_id)
 
         # Group's username
         match = constants.FBRegexes.url_group_username.search(self.driver.current_url)
         if match:
-            group.group_user = match.group('result')
+            user_name = match.group('result')
+            if user_name.isdigit():
+                # No username exists, it got FID
+                user_name = None
+            group.group_user = user_name
 
         tree = html.fromstring(self.driver.page_source)
 
         # Group's title
         match = tree.xpath(constants.FBXpaths.group_title)
+        retries = 0
+        while len(match) == 0 and retries < 5:
+            sleep(1)
+            retries += 1
+            match = tree.xpath(constants.FBXpaths.group_title)
         if len(match) > 0:
-            group.group_title = match[0]
+            group.group_title = unicode(match[0])
 
         # Group's likers amount
         match = tree.xpath(constants.FBXpaths.group_members_amount)
 
         if len(match) > 0:
             members_amount_string = match[0]
-            members_amount_digits = re.sub(r'\D', '', members_amount_string)  # example: '8,475 people liked this' -> '8475'
+            members_amount_digits = re.sub(r'\D', '',
+                                           members_amount_string)  # example: '8,475 people liked this' -> '8475'
             group.members_amount = int(members_amount_digits)
 
         # Group's description
@@ -117,35 +129,36 @@ class FBGroupParser(FBParser):
         Saves groups into database
         """
 
-        GROUP_MEMBER_INSERT = r"INSERT INTO GROUP_MEMBERS(GROUP_ID, USER_ID)" \
-                              r"VALES (%(g_id)s, %(u_id)s)"
-        group.import_to_db(cursor)  # Import/Update row in DB
+        try:
+            GROUP_MEMBER_INSERT = r"INSERT INTO GROUP_MEMBERS (GROUP_ID, USER_ID, INSERTION_TIME) " \
+                                  r"VALUES (%(g_id)s, %(u_id)s), %(time)s"
+            group.import_to_db(cursor)  # Import/Update row in DB
+            load_time = datetime.now()
 
-        for user in group.members:
-            user.import_to_db(cursor)  # Import/Update row in DB
-            cursor.execute(GROUP_MEMBER_INSERT, {
-                'g_id': group.fid, 'u_id': user.fid
-            })
-
-
-
-
+            for user in group.members:
+                user.import_to_db(cursor)  # Import/Update row in DB of User
+                cursor.execute(GROUP_MEMBER_INSERT, {
+                    'g_id': group.fid, 'u_id': user.fid, 'time': load_time
+                })
+        except connector.IntegrityError, e:
+            print "Failed to load {0} to DB".format(group.fid)
 
     def import_groups(self, groups):
         """
         :param groups: FBGroupList
         Saves all the groups into a MySQL DB
         """
-        from mysql.connector import connect
-        db_conn = connect(user='root',
-                          password='hujiko',
-                          host='127.0.0.1',
-                          database='facebook')
+        db_conn = connector.connect(user='root',
+                                    password='hujiko',
+                                    host='127.0.0.1',
+                                    database='facebook')
         cursor = db_conn.cursor()
 
         for group in groups:
             self._import_group(group, cursor)
             db_conn.commit()
+
+        db_conn.close()
 
 
     @FBParser.browser_needed
@@ -169,8 +182,9 @@ class FBGroupParser(FBParser):
 
         return all_groups
 
+
 if __name__ == '__main__':
-    parser = FBGroupParser(['XXX'], True)
-    groups = parser.run('XXXX', 'XXX')
+    parser = FBGroupParser(['1546783482199949', '361098497413890', '1591911684375443', '141134932694237'], True)
+    groups = parser.run('sidfeiner@gmail.com', 'Qraaynem23')
     parser.import_groups(groups)
     print groups[0]
