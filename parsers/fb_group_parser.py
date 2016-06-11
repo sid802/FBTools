@@ -171,6 +171,6 @@ class FBGroupParser(FBParser):
 
 if __name__ == '__main__':
     parser = FBGroupParser(['299007308617'], True)
-    groups = parser.run('sidfeiner@gmail.com', 'Qraaynem23')
+    groups = parser.run('XXXX', 'XXX')
     parser.import_groups(groups)
     print groups[0]
