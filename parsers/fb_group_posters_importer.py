@@ -29,7 +29,7 @@ def insert_group(values_array, db_cursor):
     :param db_cursor: Cursor to MySql DB
     :return: group_id
     """
-    GROUP_INSERT = r"INSERT INTO GROUPS(ID, NAME_R, MEMBERS_AMOUNT, LAST_EXTRACTION) VALUES(%(id)s, %(name)s, %(members)s, %(last)s) ON DUPLICATE KEY UPDATE NAME_R=%(name)s, MEMBERS_AMOUNT=%(members)s, LAST_EXTRACTION=%(last)s"
+    GROUP_INSERT = r"INSERT INTO GROUPS (ID, NAME_R, MEMBERS_AMOUNT, LAST_EXTRACTION) VALUES (%(id)s, %(name)s, %(members)s, %(last)s) ON DUPLICATE KEY UPDATE NAME_R=%(name)s, MEMBERS_AMOUNT=%(members)s, LAST_EXTRACTION=%(last)s"
 
     group_id, group_name, members_amount = values_array
     members_amount = nullify(members_amount)
