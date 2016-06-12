@@ -105,10 +105,11 @@ class FBGroupParser(FBParser):
         # Load group info to DB
         if load_to_db:
             try:
-                group.import_to_db(group.meta['parse_time'], self._cursor)
+                group.import_to_db(group.meta['scrape_time'], self._cursor)
                 self._db_conn.commit()
             except Exception, e:
                 print str(e)
+
                 print "Failed to load {0} to DB".format(group.fid)
 
         # Extract group members
@@ -141,6 +142,7 @@ class FBGroupParser(FBParser):
                 uid=self._user_id
             )
             self.driver.get(current_url)
+            sleep(4)
 
             html_payload = self._parse_payload_from_ajax_response(self.driver.page_source, 'group')
             if html_payload is None:
@@ -167,7 +169,7 @@ class FBGroupParser(FBParser):
         """
 
         try:
-            group.import_to_db(group.meta['parse_time'], cursor)  # Import/Update row in DB
+            group.import_to_db(group.meta['scrape_time'], cursor)  # Import/Update row in DB
             self.import_group_members(group)
         except Exception, e:
             print str(e)
@@ -229,8 +231,6 @@ class FBGroupParser(FBParser):
 
 
 if __name__ == '__main__':
-    parser = FBGroupParser(['108459592629916'], load_to_db=True)
-        #['371486982898464', '667953409893624', '258447084303291', '43456268660', '5583181379', '610241649060550',
-         #'1492833544374932', '1610254709201836', '2215439152'], True)
-    groups = parser.run('sidfeiner@gmail.com', 'Qraaynem23')
+    parser = FBGroupParser(['XXXX'], load_to_db=True)
+    groups = parser.run('XXX', 'XXX')
     #parser.import_groups(groups)

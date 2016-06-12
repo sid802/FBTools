@@ -110,9 +110,10 @@ class FBGroup(FBNode):
 
         GROUP_INSERT = r"INSERT INTO GROUPS(ID, NAME_R, USERNAME, DESCRIPTION, CATEGORY, PRIVACY, MEMBERS_AMOUNT, " \
                        r"LAST_META_PARSE) " \
-                       r"VALUES(%(id)s, %(name)s, %(user)s, %(desc)s, %(cat)s, %(priv)s, %(members)s), %(time)s " \
-                       r"ON DUPLICATE KEY UPDATE NAME_R=%(name)s, USERNAME=%(user)s," \
-                       r"DESCRIPTION=%(desc)s, CATEGORY=%(cat)s, PRIVACY=%(priv)s, MEMBERS_AMOUNT=%(members)s"
+                       r"VALUES(%(id)s, %(name)s, %(user)s, %(desc)s, %(cat)s, %(priv)s, %(members)s, %(time)s )" \
+                       r"ON DUPLICATE KEY " \
+                       r"UPDATE NAME_R=%(name)s, USERNAME=%(user)s, DESCRIPTION=%(desc)s, CATEGORY=%(cat)s," \
+                       r"PRIVACY=%(priv)s, MEMBERS_AMOUNT=%(members)s, LAST_META_PARSE=%(time)s"
 
         cursor.execute(GROUP_INSERT, {
             'id': self.fid, 'name': self.group_title, 'user': self.group_user, 'desc': self.description,
