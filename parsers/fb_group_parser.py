@@ -105,13 +105,18 @@ class FBGroupParser(FBParser):
 
         # Load group info to DB
         if load_to_db:
-            group.import_to_db(self._cursor)
+            try:
+                group.import_to_db(self._cursor)
+            except Exception, e:
+                print str(e)
+                print "Failed to load {0} to DB".format(group.fid)
 
         # Extract group members
         if extract_members:
             group.members = self.parse_group_members(group_id)
             if load_to_db:
                 self.import_group_members(group)
+                self._db_conn.commit()
 
         return group
 
@@ -184,6 +189,8 @@ class FBGroupParser(FBParser):
                     'g_id': group.fid, 'u_id': user.fid, 'time': group.meta['scrape_time']
                 })
 
+        self._db_conn.commit()  # Commit changes
+
     def import_groups(self, groups):
         """
         :param groups: FBGroupList
@@ -221,9 +228,8 @@ class FBGroupParser(FBParser):
 
 
 if __name__ == '__main__':
-    parser = FBGroupParser(['243878712401976'], True, True)
+    parser = FBGroupParser(['2215439152'], True, True)
         #['371486982898464', '667953409893624', '258447084303291', '43456268660', '5583181379', '610241649060550',
          #'1492833544374932', '1610254709201836', '2215439152'], True)
     groups = parser.run('sidfeiner@gmail.com', 'Qraaynem23')
     #parser.import_groups(groups)
-    print groups[0]
