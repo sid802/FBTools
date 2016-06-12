@@ -101,20 +101,22 @@ class FBGroup(FBNode):
         self.members = members  # list of FBUsers
         self.category = category  # Category (string)
 
-    def import_to_db(self, cursor):
+    def import_to_db(self, parse_time, cursor):
         """
+        :param parse_time: The time the metadata has been parsed
         :param cursor: cursor to DB
         imports some fields to DB
         """
 
-        GROUP_INSERT = r"INSERT INTO GROUPS(ID, NAME_R, USERNAME, DESCRIPTION, CATEGORY, PRIVACY, MEMBERS_AMOUNT) " \
-                       r"VALUES(%(id)s, %(name)s, %(user)s, %(desc)s, %(cat)s, %(priv)s, %(members)s) " \
+        GROUP_INSERT = r"INSERT INTO GROUPS(ID, NAME_R, USERNAME, DESCRIPTION, CATEGORY, PRIVACY, MEMBERS_AMOUNT, " \
+                       r"LAST_META_PARSE) " \
+                       r"VALUES(%(id)s, %(name)s, %(user)s, %(desc)s, %(cat)s, %(priv)s, %(members)s), %(time)s " \
                        r"ON DUPLICATE KEY UPDATE NAME_R=%(name)s, USERNAME=%(user)s," \
                        r"DESCRIPTION=%(desc)s, CATEGORY=%(cat)s, PRIVACY=%(priv)s, MEMBERS_AMOUNT=%(members)s"
 
         cursor.execute(GROUP_INSERT, {
             'id': self.fid, 'name': self.group_title, 'user': self.group_user, 'desc': self.description,
-            'cat': self.category, 'priv': self.category, 'members': self.members_amount
+            'cat': self.category, 'priv': self.category, 'members': self.members_amount, 'time': parse_time
         })
 
 

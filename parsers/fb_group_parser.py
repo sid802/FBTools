@@ -49,13 +49,12 @@ class FBGroupParser(FBParser):
         """
         :param group_id: (string), group id
         :param load_to_db: (boolean), load info to DB as soon as its scraped
-        :return: FBGroup instance
+        :return: FBGroupMeta instance
         """
 
         BASE_URL = 'https://facebook.com/{fid}'
         self.driver.get(BASE_URL.format(fid=group_id))
         group = FBGroupMeta(group_id)
-        scrape_start = datetime.now()
 
         # Group's username
         match = constants.FBRegexes.url_group_username.search(self.driver.current_url)
@@ -106,7 +105,8 @@ class FBGroupParser(FBParser):
         # Load group info to DB
         if load_to_db:
             try:
-                group.import_to_db(self._cursor)
+                group.import_to_db(group.meta['parse_time'], self._cursor)
+                self._db_conn.commit()
             except Exception, e:
                 print str(e)
                 print "Failed to load {0} to DB".format(group.fid)
@@ -160,14 +160,14 @@ class FBGroupParser(FBParser):
 
     def _import_group(self, group, cursor):
         """
-        :param group: FBGroup instance
+        :param group: FBGroupMeta instance
         :param cursor: cursor to DB
         :return: boolean for success
         Saves groups into database
         """
 
         try:
-            group.import_to_db(cursor)  # Import/Update row in DB
+            group.import_to_db(group.meta['parse_time'], cursor)  # Import/Update row in DB
             self.import_group_members(group)
         except Exception, e:
             print str(e)
@@ -224,11 +224,12 @@ class FBGroupParser(FBParser):
             group = self.parse_group(group_id, extract_members, load_to_db)
             all_groups.append(group)
 
+        self.driver.quit()
         return all_groups
 
 
 if __name__ == '__main__':
-    parser = FBGroupParser(['2215439152'], True, True)
+    parser = FBGroupParser(['108459592629916'], load_to_db=True)
         #['371486982898464', '667953409893624', '258447084303291', '43456268660', '5583181379', '610241649060550',
          #'1492833544374932', '1610254709201836', '2215439152'], True)
     groups = parser.run('sidfeiner@gmail.com', 'Qraaynem23')
