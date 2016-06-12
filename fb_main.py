@@ -117,7 +117,7 @@ class FBGroup(FBNode):
 
         cursor.execute(GROUP_INSERT, {
             'id': self.fid, 'name': self.group_title, 'user': self.group_user, 'desc': self.description,
-            'cat': self.category, 'priv': self.category, 'members': self.members_amount, 'time': parse_time
+            'cat': self.category, 'priv': self.privacy, 'members': self.members_amount, 'time': parse_time
         })
 
 
