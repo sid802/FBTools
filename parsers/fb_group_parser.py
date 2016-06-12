@@ -9,27 +9,53 @@ from time import sleep
 from datetime import datetime
 from mysql import connector
 
+class FBGroupMeta(FBGroup):
+    """
+    Extension of FBGroup which adds metadata of the parsing itself
+    """
+    def __init__(self, fbid, group_user=None, group_title=None, privacy=None, description=None,
+                 category=None, members_amount=None, members=None):
+        super(FBGroupMeta, self).__init__(fbid, group_user, group_title, privacy, description,
+                                            category, members_amount, members)
+        self.group_user = group_user  # username (string)
+        self.group_title = group_title  # full name (string)
+        self.privacy = privacy  # string
+        self.description = description  # string
+        self.members_amount = members_amount  # int
+        self.members = members  # list of FBUsers
+        self.category = category  # Category (string)
+
+        self.meta = {'scrape_time': datetime.now()}
+
 
 class FBGroupParser(FBParser):
     """
     Class to parse FB Group metadata
     """
 
-    def __init__(self, group_ids, extract_members=False):
+    def __init__(self, group_ids, extract_members=False, load_to_db=False):
         super(FBGroupParser, self).__init__()
         self.group_ids = group_ids  # list of strings
         self.extract_members = extract_members  # boolean
+        self._load_to_db = load_to_db  # boolean, load info to DB as soon as its scraped
+        self._db_conn = connector.connect(user='root',
+                                         password='hujiko',
+                                         host='127.0.0.1',
+                                         database='facebook')
+        self._cursor = self._db_conn.cursor()
 
     @FBParser.browser_needed
-    def parse_group(self, group_id, extract_members=False):
+    def parse_group(self, group_id, extract_members=False, load_to_db=False):
         """
         :param group_id: (string), group id
+        :param load_to_db: (boolean), load info to DB as soon as its scraped
         :return: FBGroup instance
         """
 
         BASE_URL = 'https://facebook.com/{fid}'
         self.driver.get(BASE_URL.format(fid=group_id))
-        group = FBGroup(group_id)
+        group = FBGroupMeta(group_id)
+        scrape_start = datetime.now()
 
         # Group's username
         match = constants.FBRegexes.url_group_username.search(self.driver.current_url)
@@ -77,9 +103,15 @@ class FBGroupParser(FBParser):
         if len(match) > 0:
             group.privacy = unicode(match[0])
 
+        # Load group info to DB
+        if load_to_db:
+            group.import_to_db(self._cursor)
+
         # Extract group members
         if extract_members:
             group.members = self.parse_group_members(group_id)
+            if load_to_db:
+                self.import_group_members(group)
 
         return group
 
@@ -130,62 +162,68 @@ class FBGroupParser(FBParser):
         """
 
         try:
-            GROUP_MEMBER_INSERT = r"INSERT INTO GROUP_MEMBERS (GROUP_ID, USER_ID, INSERTION_TIME) " \
-                                  r"VALUES (%(g_id)s, %(u_id)s, %(time)s)"
             group.import_to_db(cursor)  # Import/Update row in DB
-            load_time = datetime.now()
-
-            for user in group.members:
-                user.import_to_db(cursor)  # Import/Update row in DB of User
-                cursor.execute(GROUP_MEMBER_INSERT, {
-                    'g_id': group.fid, 'u_id': user.fid, 'time': load_time
-                })
+            self.import_group_members(group)
         except Exception, e:
             print str(e)
             print "Failed to load {0} to DB".format(group.fid)
+
+    def import_group_members(self, group, cursor=None):
+        """
+        :param group: FBGroup istance
+        Loads all users and link to group into DB
+        """
+
+        GROUP_MEMBER_INSERT = r"INSERT INTO GROUP_MEMBERS (GROUP_ID, USER_ID, SCRAPING_TIME) " \
+                                  r"VALUES (%(g_id)s, %(u_id)s, %(time)s)"
+        cursor = _default_vs_new(self._cursor, cursor)
+
+        for user in group.members:
+                user.import_to_db(cursor)  # Import/Update row in DB of User
+                cursor.execute(GROUP_MEMBER_INSERT, {
+                    'g_id': group.fid, 'u_id': user.fid, 'time': group.meta['scrape_time']
+                })
 
     def import_groups(self, groups):
         """
         :param groups: FBGroupList
         Saves all the groups into a MySQL DB
         """
-        db_conn = connector.connect(user='root',
-                                    password='hujiko',
-                                    host='127.0.0.1',
-                                    database='facebook')
-        cursor = db_conn.cursor()
 
         for group in groups:
-            self._import_group(group, cursor)
-            db_conn.commit()
+            self._import_group(group, self._cursor)
+            self._db_conn.commit()
 
-        db_conn.close()
+        self._db_conn.close()
 
 
     @FBParser.browser_needed
-    def run(self, email, password, extract_members=None):
+    def run(self, email, password, extract_members=None, load_to_db=None):
         """
         :param email: Email to connect with
         :param password: Password to connect with
-        :param extract_memebrs: (boolean), defaults to when the parser was created
+        :param extract_members: (boolean), defaults to when the parser was created
+        :param load_to_db: (boolean), load info to DB as soon as its scraped
         :return: List of pages metadata
         """
 
         self._user_id = self.init_connect(email, password)
-
         extract_members = _default_vs_new(self.extract_members, extract_members)
+        load_to_db = _default_vs_new(self._load_to_db, load_to_db)
 
         all_groups = FBGroupList()
 
         for group_id in self.group_ids:
-            group = self.parse_group(group_id, extract_members)
+            group = self.parse_group(group_id, extract_members, load_to_db)
             all_groups.append(group)
 
         return all_groups
 
 
 if __name__ == '__main__':
-    parser = FBGroupParser(['1546783482199949', '361098497413890', '1591911684375443', '141134932694237'], True)
+    parser = FBGroupParser(['243878712401976'], True, True)
+        #['371486982898464', '667953409893624', '258447084303291', '43456268660', '5583181379', '610241649060550',
+         #'1492833544374932', '1610254709201836', '2215439152'], True)
     groups = parser.run('sidfeiner@gmail.com', 'Qraaynem23')
-    parser.import_groups(groups)
+    #parser.import_groups(groups)
     print groups[0]
