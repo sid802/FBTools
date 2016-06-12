@@ -463,7 +463,13 @@ class GroupParser(object):
                 output.flush()
                 return True, i
 
+            if last_post_id == result_tuple[0]:
+                # Stop script from looping for ever
+                output.flush()
+                return True, i
+
             last_post_id, last_timestamp = result_tuple
+
             if last_timestamp is not None and last_timestamp < last_timestamp_unix:
                 # From here on, posts have already been written in DB
                 output.flush()
