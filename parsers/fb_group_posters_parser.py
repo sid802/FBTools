@@ -494,7 +494,7 @@ class GroupParser(object):
         """
         reload_amount = stronger_value(self.reload_amount, reload_amount)
         with open(r"C:\Users\Sid\Desktop\output.txt", 'ab+') as output:
-            output.write("\r\n")  # Like that BOM won't be in fron of command
+            output.write("\r\n")  # Like that BOM won't be in front of command
             for group_id, last_post_unix in self.group_ids:
                 current_group = self._extract_group_info(group_id)
                 print 'Starting to parse group: {0}'.format(current_group.name.encode('utf-8'))
@@ -673,10 +673,12 @@ def get_wanted_group_ids():
 
     QUERY = """
             SELECT
-                id, last_post_unix, last_extraction
+                id,
+                UNIX_TIMESTAMP(last_info_extraction),
+                last_info_extraction
             FROM
                 facebook.group_summary
-            ORDER BY LAST_EXTRACTION ASC
+            ORDER BY last_info_extraction ASC
             LIMIT 10
             """
 
