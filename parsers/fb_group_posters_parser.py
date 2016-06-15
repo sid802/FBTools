@@ -452,6 +452,7 @@ class GroupParser(object):
             time.sleep(5)
         
         reload_id = 2
+        last_post_id = 0  # Init
         payload_html = self.driver.page_source
 
         for i in xrange(2, reload_amount + 1):
@@ -531,7 +532,7 @@ class GroupParser(object):
         try:
             self._parse_all_groups(user_id=my_id, reload_amount=reload_amount)
         except Exception, e:
-            f = raw_input()
+            raise e
         finally:
             self.driver.quit()
 
