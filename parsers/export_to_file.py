@@ -124,7 +124,7 @@ def _write_group_action(group, action, output_file, encoding='utf-8'):
 
 def write_user_post(user_post, output_file):
     """
-    :param user_post: User post to write
+    :param user_post: FBPost to write
     :param output_file: File to write to
     :return:
     """

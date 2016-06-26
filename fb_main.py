@@ -125,10 +125,16 @@ class FBPost(object):
     class to contain post about a post
     """
 
-    def __init__(self, id='', group=None, author=None, date_time='', content=''):
+    def __init__(self, id='', group=None, author=None, date_time='', content='', commenters=None):
         super(FBPost, self).__init__(id)
         self.group = group
         self.author = author
+
+        if commenters:
+            self.comments = commenters
+        else:
+            self.comments = []
+
         self.content = content
 
         if type(date_time) == int:

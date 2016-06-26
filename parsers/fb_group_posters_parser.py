@@ -9,14 +9,12 @@ __author__ = 'Sid'
 #
 ##############################################
 
-import re
-import time
-import sys
-import json
+import re, time, sys, json
 from base64 import b64encode
 from HTMLParser import HTMLParser
 from datetime import datetime
 
+sys.path.append(r'C:\Users\Sid\Documents\GitHub\PhoneExtractor')
 import canonization
 from selenium import webdriver
 from lxml import html
@@ -278,7 +276,7 @@ class GroupParser(FBParser):
     def _parse_page(self, group, parse_src, output_file):
         """
         :param group: current Group instance
-        :param parse_src: src text to parse from
+        :param parse_src: src (string) to parse from
         :param output_file: handle to file where to write the results
         """
 
@@ -301,10 +299,9 @@ class GroupParser(FBParser):
             if not last_timestamp:
                 last_timestamp = previous_timestamp  # last_timestamp is previous again (which isn't None)
 
-            current_user_post = UserPost(author=author_info, group=group, post=current_post,
-                                         commenters=commenters_infos)
+            current_post.commenters = commenters_infos
 
-            export_to_file.write_user_post(current_user_post, output_file)
+            export_to_file.write_user_post(current_post, output_file)
 
         return current_post.id, last_timestamp
 
