@@ -2,7 +2,7 @@ __author__ = 'Sid'
 from lxml import html
 from parsers import fb_constants as constants
 from fb_main import *
-from fb_main import _default_vs_new
+from fb_main import _default_vs_new, _stronger_value
 from fb_df import *
 import re
 from time import sleep
@@ -38,11 +38,12 @@ class FBGroupParser(FBParser):
         self.group_ids = group_ids  # list of strings
         self.extract_members = extract_members  # boolean
         self._load_to_db = load_to_db  # boolean, load info to DB as soon as its scraped
-        self._db_conn = connector.connect(user='root',
-                                         password='hujiko',
-                                         host='127.0.0.1',
-                                         database='facebook')
-        self._cursor = self._db_conn.cursor()
+        if self._load_to_db:
+            self._db_conn = connector.connect(user='root',
+                                             password='hujiko',
+                                             host='127.0.0.1',
+                                             database='facebook')
+            self._cursor = self._db_conn.cursor()
 
     @FBParser.browser_needed
     def parse_group(self, group_id, extract_members=False, load_to_db=False):
@@ -217,8 +218,22 @@ class FBGroupParser(FBParser):
         """
 
         self._user_id = self.init_connect(email, password)
+        results = self._run_connected(extract_members, load_to_db)
+        self.driver.quit()
+        return results
+
+
+    def _run_connected(self, extract_members=None, load_to_db=None, driver=None):
+        """
+        :param extract_members: (boolean), defaults to when the parser was created
+        :param load_to_db: (boolean), load info to DB as soon as its scraped
+        :return: List of pages metadata
+        Method is called only after it's been connected
+        """
+
         extract_members = _default_vs_new(self.extract_members, extract_members)
         load_to_db = _default_vs_new(self._load_to_db, load_to_db)
+        self.driver = _stronger_value(self.driver, driver)
 
         all_groups = FBGroupList()
 
@@ -226,7 +241,6 @@ class FBGroupParser(FBParser):
             group = self.parse_group(group_id, extract_members, load_to_db)
             all_groups.append(group)
 
-        self.driver.quit()
         return all_groups
 
 

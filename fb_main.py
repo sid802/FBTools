@@ -270,6 +270,12 @@ class FBParser(object):
             raise JSONParseError(error)
             return None
 
+    def run(self):
+        raise NotImplementedError("You must implement this method")
+
+    def run_already_connected(self, *args, **kwargs):
+        return self.run(*args, **kwargs)
+
     @staticmethod
     def browser_needed(func):
         def func_wrapper(self, *args, **kwargs):
@@ -291,3 +297,13 @@ def _default_vs_new(default_val, new_val):
     if new_val is not None:
         return new_val
     return default_val
+
+def _stronger_value(original_value, new_value):
+    """
+    :param original_value: original value
+    :param new_value: value to replace the original value
+    :return: new_value if it isnt null, original_value otherwise
+    """
+    if new_value:
+        return new_value
+    return original_value

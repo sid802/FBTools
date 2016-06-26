@@ -23,6 +23,7 @@ import fb_constants as constants
 
 import export_to_file
 from fb_main import *
+from fb_main import _stronger_value, _default_vs_new
 import fb_group_parser
 
 
@@ -37,10 +38,8 @@ class ClosedGroupException(Exception):
         super(ClosedGroupException, self).__init__(message)
 
 
-class GroupParser(FBParser):
-    def __init__(self, email, password, reload_amount, group_ids):
-        self.email = email
-        self.password = password
+class FBGroupInfosParser(FBParser):
+    def __init__(self, group_ids, reload_amount):
         self.reload_amount = reload_amount
         self.group_ids = group_ids
         self.driver = None
@@ -396,11 +395,16 @@ class GroupParser(FBParser):
         """
         start parsing the groups
         """
-        reload_amount = stronger_value(self.reload_amount, reload_amount)
+        reload_amount = _stronger_value(self.reload_amount, reload_amount)
         with open(r"C:\Users\Sid\Desktop\output.txt", 'ab+') as output:
             output.write("\r\n")  # Like that BOM won't be in front of command
             for group_id, last_post_unix in self.group_ids:
-                current_group = fb_group_parser.FBGroupParser([group_id])
+                parsed_groups = fb_group_parser.FBGroupParser([group_id])._run_connected(driver=self.driver)
+                try:
+                    current_group = parsed_groups[0]
+                except IndexError, e:
+                    print "Couldn't parse group metadata with FID: {0}".format(group_id)
+                    continue
                 print 'Starting to parse group: {0}'.format(current_group.group_title.encode('utf-8'))
                 try:
                     export_to_file.write_group_start(current_group, output)
@@ -416,13 +420,13 @@ class GroupParser(FBParser):
                 print 'Done parsing group: {0}\nParsed everything: {1}'.format(current_group.name.encode('utf-8'),
                                                                                absolute_crawl)
 
-    def run(self, reload_amount=None):
+    @FBParser.browser_needed
+    def run(self, email, password, reload_amount=None):
         """
         start running the parser
         """
-        reload_amount = stronger_value(self.reload_amount, reload_amount)
-        self.driver = webdriver.Chrome()
-        my_id = self.init_connect()  # Connect to facebook
+        reload_amount = _stronger_value(self.reload_amount, reload_amount)
+        my_id = self.init_connect(email, password)  # Connect to facebook
 
         if my_id is None:
             raise Exception("User id not found in homepage")
@@ -450,17 +454,6 @@ class UserPost(object):
         self.commenters = commenters
         self.post = post  # Post instance
         self.group = group  # Group instance
-
-
-def stronger_value(original_value, new_value):
-    """
-    :param original_value: original value
-    :param new_value: value to replace the original value
-    :return: new_value if it isnt null, original_value otherwise
-    """
-    if new_value:
-        return new_value
-    return original_value
 
 
 def get_group_ids():
@@ -519,8 +512,8 @@ def main(params_dict=None):
         password = params_dict['password']
         amount = params_dict['reload_amount']
 
-    group_parser = GroupParser(email=email, password=password, reload_amount=amount, group_ids=group_ids)
-    group_parser.run()
+    group_parser = FBGroupInfosParser(group_ids=group_ids, reload_amount=amount)
+    group_parser.run(email, password)
     raw_input('Enter anything to finish')
 
 

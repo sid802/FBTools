@@ -25,6 +25,7 @@ def write_user_posts(user_posts, output_file):
 
     pass
 
+
 def write_user_start(user, output_file):
     """
     :param user: User we start parsing
@@ -33,6 +34,7 @@ def write_user_start(user, output_file):
     """
     _write_user_action(user, 'start', output_file)
 
+
 def write_user_end(user, output_file):
     """
     :param user: User we ended parsing
@@ -40,6 +42,7 @@ def write_user_end(user, output_file):
     :return:
     """
     _write_user_action(user, 'end', output_file)
+
 
 def _write_user_action(user, action, output_file):
     """
@@ -50,9 +53,10 @@ def _write_user_action(user, action, output_file):
     """
 
     output_file.write("{action}_user\t{u_id}\t{u_u_name}\t{u_f_name}\r\n".format(action=action,
-                                                                             u_id=user.id,
-                                                                             u_u_name=user.user_name,
-                                                                             u_f_name=user.full_name))
+                                                                                 u_id=user.id,
+                                                                                 u_u_name=user.user_name,
+                                                                                 u_f_name=user.full_name))
+
 
 def write_group_start(group, output_file):
     """
@@ -62,6 +66,7 @@ def write_group_start(group, output_file):
     """
     _write_group_action(group, 'start', output_file)
 
+
 def write_group_end(group, output_file):
     """
     :param group: Group we ended parsing
@@ -69,6 +74,7 @@ def write_group_end(group, output_file):
     :return:
     """
     _write_group_action(group, 'end', output_file)
+
 
 def write_post_start(post, output_file):
     """
@@ -78,6 +84,7 @@ def write_post_start(post, output_file):
     """
     _write_post_action(post, 'start', output_file)
 
+
 def write_post_end(post, output_file):
     """
     :param post: Post we end parsing
@@ -85,6 +92,7 @@ def write_post_end(post, output_file):
     :return:
     """
     _write_post_action(post, 'end', output_file)
+
 
 def _write_post_action(post, action, output_file, encoding='utf-8'):
     """
@@ -99,14 +107,14 @@ def _write_post_action(post, action, output_file, encoding='utf-8'):
     else:
         date_time = post.date_time.strftime("%d/%m/%Y %H:%M")
 
-
     output_file.write("{action}_post\t{p_id}\t{g_id}\t{u_id}\t{p_time}\r\n".format(action=action.encode(encoding),
-                                                                               p_id=post.id.encode(encoding),
-                                                                               g_id=post.group_id.encode(encoding),
-                                                                               u_id=post.user_id.encode(encoding),
-                                                                               p_time=date_time.encode(encoding)
-                                                                               )
+                                                                                   p_id=post.id.encode(encoding),
+                                                                                   g_id=post.group_id.encode(encoding),
+                                                                                   u_id=post.user_id.encode(encoding),
+                                                                                   p_time=date_time.encode(encoding)
+                                                                                   )
                       )
+
 
 def _write_group_action(group, action, output_file, encoding='utf-8'):
     """
@@ -115,12 +123,18 @@ def _write_group_action(group, action, output_file, encoding='utf-8'):
     :param output_file: file to write to
     :return:
     """
-    output_file.write("{action}_group\t{g_id}\t{g_name}\t{g_member}\r\n".format(action=action.encode(encoding),
-                                                                                g_id=group.id.encode(encoding),
-                                                                                g_name=group.name.encode(encoding),
-                                                                                g_member=group.members
-                                                                                )
-                      )
+    output_file.write("{action}_group\t{g_id}\t{g_name}\t{g_user}\t{g_member}\t{priv}\t{desc}\t{cat}\r\n".format(
+        action=action.encode(encoding),
+        g_id=group.fid.encode(encoding),
+        g_name=group.title_name.encode(encoding),
+        g_user=group.username.encode(encoding),
+        g_member=group.members,
+        priv=group.privacy,
+        desc=group.description,
+        cat=group.category
+        )
+    )
+
 
 def write_user_post(user_post, output_file):
     """
@@ -136,6 +150,7 @@ def write_user_post(user_post, output_file):
         write_user_infos(commenter, 'commenter', output_file)
 
     write_post_end(user_post.post, output_file)
+
 
 def write_user_infos(user, action, output_file, encoding='utf-8'):
     """
@@ -161,6 +176,7 @@ def write_user_infos(user, action, output_file, encoding='utf-8'):
             i_canonized=info[0].encode(encoding),
             i_original=info[1].encode(encoding))
         )
+
 
 def write_absolute_parse(group, output_file):
     """
