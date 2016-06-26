@@ -4,7 +4,7 @@ from HTMLParser import HTMLParser
 import json
 
 from selenium import webdriver
-
+from datetime import datetime
 from parsers import fb_constants as constants
 
 
@@ -120,6 +120,26 @@ class FBGroup(FBNode):
             'cat': self.category, 'priv': self.privacy, 'members': self.members_amount, 'time': parse_time
         })
 
+class FBPost(object):
+    """
+    class to contain post about a post
+    """
+
+    def __init__(self, id='', group=None, author=None, date_time='', content=''):
+        super(FBPost, self).__init__(id)
+        self.group = group
+        self.author = author
+        self.content = content
+
+        if type(date_time) == int:
+            # timestamp unix
+            post_datetime = datetime.fromtimestamp(date_time)
+        elif type(date_time) == datetime:
+            post_datetime = date_time
+        else:
+            post_datetime = None
+
+        self.date_time = post_datetime
 
 class FBParser(object):
     """
@@ -229,7 +249,7 @@ class FBParser(object):
             return None
 
         try:
-            if source == 'friends':
+            if source in ['friends', 'group_posts']:
                 return json_dict['payload']
             elif source in ['group', 'mutual_friends']:
                 return json_dict['domops'][0][3]['__html']

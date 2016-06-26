@@ -13,16 +13,19 @@ import re
 import time
 import sys
 import json
-from datetime import datetime
 from base64 import b64encode
 from HTMLParser import HTMLParser
+from datetime import datetime
 
 import canonization
 from selenium import webdriver
 from lxml import html
 from mysql import connector
+import fb_constants as constants
 
 import export_to_file
+from fb_main import *
+import fb_group_parser
 
 
 # Constants
@@ -36,7 +39,7 @@ class ClosedGroupException(Exception):
         super(ClosedGroupException, self).__init__(message)
 
 
-class GroupParser(object):
+class GroupParser(FBParser):
     def __init__(self, email, password, reload_amount, group_ids):
         self.email = email
         self.password = password
@@ -47,184 +50,112 @@ class GroupParser(object):
         self._xpaths = self._init_xpaths()
         self._canonizers = canonization.create_all_canonizers()
         self._html_parser = HTMLParser()
-    
+
     def _init_regexes(self):
         """
         :return: dictionary of compiled regexes
         """
-        
+
         regexes = {}
-        
+
         # Extracts user id from facebook homepage
         regexes['my_id'] = re.compile(r'"USER_ID":"(?P<result>\d+)')
-        
+
         # Doesn't extract fid if no username found. ON PURPOSE
         regexes['username_from_url'] = re.compile(r'facebook\.com/(?P<result>[\w.]+)')
-        
+
         # Extracts fid from data-hover attribute (/ajax/hovercard/user.php?id=785737849&extragetparams=)
         regexes['fid_from_url'] = re.compile(r'\?id=(?P<result>\d+)')
-        
+
         # Finds emails
         regexes['emails'] = re.compile(r'([\w.-]+(@|&#064;)[\w-]{2,}(\.[\w-]{2,}){1,4})')
-        
+
         # Extract post_id from id attribute
         regexes['post_id'] = re.compile(r'mall_post_(?P<result>\d+)')
-        
+
         # Extract json from page source
         regexes['json_from_html'] = re.compile(r'[^{]*(?P<json>.*\})[^}]*$')
-        
+
         return regexes
-    
+
     def _init_xpaths(self):
         """
         :return: dictionary of xpaths
         """
-        
+
         xpaths = {}
-        
+
         # xpath to full post, containing comments (a post has an attribute named 'data-ft' with a tl_objid key
         xpaths['full_post'] = "//div[contains(@data-ft,'tl_objid')]"
-        
+
         # xpaths to the content itself and the comment section
         xpaths['post_content'] = ".//p/parent::*"
-        
+
         # Author Xpath's. Relative to post
-        xpaths['post_author'] = './/a[@data-hovercard][2]'  # First is link from picture, withour name
+        xpaths['post_author'] = './/a[@data-hovercard][2]'  # First is link from picture, without name
         xpaths['author_username'] = './@href'  # URL's need further parsing
         xpaths['author_fid'] = './@data-hovercard'
         xpaths['author_fullname'] = './text()'
-        
+
         # Comment Xpath's
         xpaths['post_comments'] = ".//div[contains(@class, 'UFIContainer')]//div[@class='UFICommentContent']"
         xpaths['comment_meta'] = './/a[contains(@class,"UFICommentActorName")]'
         xpaths['comment_author_fid'] = './@data-hovercard'  # URL's need further parsing, relative to meta
         xpaths['comment_author_username'] = './@href'  # URL's need further parsing, relative to meta
         xpaths['comment_author_fullname'] = './span/text()'  # relative to meta
-        
+
         xpaths['comment_text'] = './/span[contains(@class,"UFICommentBody")]'  # Relative to comment
-        
+
         xpaths['post_timestamp'] = './/abbr/@data-utime[1]'  # Relative to post
         xpaths['post_id'] = './@id'  # Relative to post, needed further parsing
-        
+
         return xpaths
-    
-    def init_connect(self):
-        """
-        Connect to facebook
-        return True if successfull, False otherwise
-        """
-        self.driver.get('https://facebook.com')
-        
-        # set email
-        email_element = self.driver.find_element_by_id('email')
-        email_element.send_keys(self.email)
-        
-        # set password
-        password_element = self.driver.find_element_by_id('pass')
-        password_element.send_keys(self.password)
-        
-        # press login button
-        self.driver.find_element_by_id('loginbutton').click()
-        
-        if 'attempt' in self.driver.current_url:
-            # Failed to log in
-            return None
-        
-        my_id_match = self._regexes['my_id'].search(self.driver.page_source)
-        if my_id_match:
-            return my_id_match.group('result')
-        
-        return None
-    
-    def _extract_group_info(self, group_id):
-        """
-        Extract group info.
-        :return Group instance
-        """
-        group_name_xpath = '//input[@aria-label="Search Facebook" or @tabindex="-1"]/@value'
-        group_members_xpath = '//span[@id="count_text"]/text()'
-        group_members_amount_regex = re.compile(r'[\d,]+')
-        
-        group_url = 'https://facebook.com/{id}'
-        self.driver.get(group_url.format(id=group_id))
-        time.sleep(5)
-        
-        page_source = self.driver.page_source
-        
-        html_tree = html.fromstring(page_source)
-        
-        group_name = html_tree.xpath(group_name_xpath)[0]
-        
-        # Parse members amount, cast to int
-        members_xpath_result = html_tree.xpath(group_members_xpath)
-        if members_xpath_result:
-            group_members_string = members_xpath_result[0]
-            group_members_match = group_members_amount_regex.search(group_members_string)  # Number with commas
-            if group_members_match:
-                members_only_digits = re.sub(r'\D', '', group_members_match.group())  # Keep only numbers
-                group_members = int(members_only_digits)
-        else:
-            group_members = None
-        
-        return Group(id=group_id, name=group_name, members=group_members)
-    
+
     def _parse_from_xpath(self, xpath_result, target_parse):
         """
         :param xpath_result: List containing Url with username (should have only 1 string)
         :param target_parse: string of what you want to parse ('fid'/'username'/'post_id' or _USERNAME/_FID/_POST_ID)
         :return: Parsed username if exists
         """
-        
+
         if not xpath_result:
             return ''
-        
+
         regex = self._regexes[target_parse]
-        
+
         match = regex.search(xpath_result[0])  # Choose only first result from list
         if not match:
             return ''
-        
+
         result = match.group('result')
-        
+
         if target_parse == _USERNAME and result == 'profile.php':
             return ''
-        
+
         return result
-    
+
     def _parse_user(self, post_node):
         """
         :param post_node: Html node representing the current post
         :return: UserInfo instance - only USER
         """
-        
-        post_author_nodes = post_node.xpath(self._xpaths['post_author'])
+
+        post_author_nodes = post_node.xpath(constants.FBXpaths.post_commenter)
         if not post_author_nodes:
             return None
-        
+
         post_author = post_author_nodes[0]
-        
-        user_name_url = post_author.xpath(self._xpaths['author_username'])
-        user_name = self._parse_from_xpath(user_name_url, _USERNAME)
-        
-        fid_url = post_author.xpath(self._xpaths['author_fid'])
-        fid = self._parse_from_xpath(fid_url, _FID)
-        
-        full_name_xpath = post_author.xpath(self._xpaths['author_fullname'])
-        if full_name_xpath:
-            full_name = full_name_xpath[0]
-        else:
-            # No full name exists
-            full_name = ''
-        
-        return UserInfo(user_name=user_name, id=fid, full_name=full_name)
-    
+        poster = self._parse_user_from_link(post_author)
+
+        return UserInfo(fb_user=poster)
+
     def _parse_phones(self, text):
         """
         :param text: source to extract phone numbers from
         :return: set of tuples containig canonized phone number and country
         """
         info_tuples = set()
-        
+
         for country, canonizer in self._canonizers.iteritems():
             # Find all phone numbers and canonize
             country_phone = canonizer._country_phone
@@ -236,96 +167,83 @@ class GroupParser(object):
                 canonized_phone_lst = canonizer.canonize(phone)
                 for canonized_phone in canonized_phone_lst:
                     info_tuples.add((phone, canonized_phone, '{0}_phone'.format(country)))
-        
+
         return info_tuples
-    
+
     def _parse_emails(self, text):
         """
         :param text: source to extract emails from
         :return: set of emails
         """
-        
+
         info_tuples = set()
-        
+
         emails = self._regexes['emails'].findall(text)
         for email in emails:
             canonized_email = email[0].replace('#&064;', '@').lower()  # email is a tuple. email[0] is full email
             canonized_email = canonized_email.strip('.')
             info_tuples.add((canonized_email, canonized_email.lower(), 'email'))
-        
+
         return info_tuples
-    
+
     def _parse_info_from_text(self, text):
         """
         :param text: Text to extract info from
         :return: list of tuple info
         """
-        
+
         info_tuples = self._parse_phones(text)
         emails = self._parse_emails(text)
-        
+
         # Union all infos
         info_tuples.update(emails)
-        
+
         return info_tuples
-    
+
     def _parse_info_from_node(self, post_node):
         """
         :param post_node: Html node representing the current post
         :return: list of tuple info
         """
-        
+
         post_content_lst = post_node.xpath(self._xpaths['post_content'])
         post_content = '\n'.join(map(lambda x: x.text_content(), post_content_lst))
-        
+
         return self._parse_info_from_text(post_content)
-    
+
     def _parse_user_info(self, post_node):
         """
         :param post_node: Html node representing the current post
         :return: UserInfo instance (names, info)
         """
-        
+
         user = self._parse_user(post_node)
-        infos = self._parse_info_from_node(post_node)
-        user.infos = infos
-        
+        user.infos = self._parse_info_from_node(post_node)
         return user
-    
+
     def _parse_user_from_comment(self, comment_xpath):
         """
         :param comment_xpath: xpath node to current comment
-        :return:
+        :return: FBUser instance of comment's user
         """
-        
+
         comment_meta_lst = comment_xpath.xpath(self._xpaths['comment_meta'])
-        
+
         if comment_meta_lst:
             comment_meta = comment_meta_lst[0]
-            user_name_lst = comment_meta.xpath(self._xpaths['comment_author_username'])
-            user_name = self._parse_from_xpath(user_name_lst, _USERNAME)
-            
-            fid_lst = comment_meta.xpath(self._xpaths['comment_author_fid'])
-            fid = self._parse_from_xpath(fid_lst, _FID)
-            
-            full_name_lst = comment_meta.xpath(self._xpaths['comment_author_fullname'])
-            if full_name_lst:
-                full_name = full_name_lst[0]
-            else:
-                full_name = ''
-            
-            return UserInfo(user_name=user_name, id=fid, full_name=full_name)
-        
+            commenter = self._parse_user_from_link(comment_meta)
+            return commenter
+
         return None
-    
+
     def _parse_user_infos_from_comment(self, comments_xpath):
         """
         :param comments_xpath: xpath containing all comments
         :return: distinct user_infos who commented
         """
-        
+
         all_commenters = set()  # Set of user_info's
-        
+
         for comment in comments_xpath:
             user_info = self._parse_user_from_comment(comment)
             comment_content_lst = self._xpaths['comment_text']
@@ -333,61 +251,63 @@ class GroupParser(object):
                 comment_content = comment_content_lst[0]
                 infos = self._parse_info_from_text(comment_content)
                 user_info.infos = infos
-            
+
             all_commenters.add(user_info)
-        
+
         return all_commenters
-    
-    def _parse_post(self, group, user, post_xpath):
+
+    def _parse_post(self, group, author, post_xpath):
         """
         :param post_xpath: xpath node for current post
+        :param group: FBGroup where post was posted
+        :param author: FBUser who is the post's author
         :return: Post instance
         """
-        
+
         timestamp_unix_str = post_xpath.xpath(self._xpaths['post_timestamp'])
-        
+
         if not timestamp_unix_str:
             timestamp = None
         else:
             timestamp = int(timestamp_unix_str[0])
-        
+
         post_id_path = post_xpath.xpath(self._xpaths['post_id'])
         post_id = self._parse_from_xpath(post_id_path, _POST_ID)
-        return Post(id=post_id, group_id=group.id, user_id=user.id, date_time=timestamp), timestamp
-    
+        return FBPost(id=post_id, group=group, author=author, date_time=timestamp), timestamp
+
     def _parse_page(self, group, parse_src, output_file):
         """
         :param group: current Group instance
         :param parse_src: src text to parse from
         :param output_file: handle to file where to write the results
         """
-        
+
         html_tree = html.fromstring(parse_src)
-        
+
         all_posts = html_tree.xpath(self._xpaths['full_post'])
         if not all_posts:
             raise ClosedGroupException("Probably got to a Closed group")
-        
+
         last_timestamp = None
-        
+
         for post in all_posts:
             author_info = self._parse_user_info(post)
             comments = post.xpath(self._xpaths['post_comments'])
             commenters_infos = self._parse_user_infos_from_comment(comments)
-            
+
             previous_timestamp = last_timestamp  # Save previous in case current is None
             current_post, last_timestamp = self._parse_post(group, author_info, post)
 
             if not last_timestamp:
                 last_timestamp = previous_timestamp  # last_timestamp is previous again (which isn't None)
-            
+
             current_user_post = UserPost(author=author_info, group=group, post=current_post,
                                          commenters=commenters_infos)
 
             export_to_file.write_user_post(current_user_post, output_file)
 
         return current_post.id, last_timestamp
-    
+
     def _get_next_url(self, last_post_id, last_timestamp, group_id, user_id, reload_id):
         """
         :param last_post_id: id of the last post extracted
@@ -397,7 +317,7 @@ class GroupParser(object):
         :param reload_id: index of current reload (starts with 1)
         :return: formatted string
         """
-        
+
         base_url = (
             'https://www.facebook.com/ajax/pagelet/generic.php/GroupEntstreamPagelet?__pc=EXP1:react_composer_pkg'
             '&ajaxpipe=1&ajaxpipe_token=AXhY1JWsfBFKhhsj&no_script_path=1'
@@ -405,52 +325,28 @@ class GroupParser(object):
             '"group_id":{g_id},"has_cards":true,"multi_permalinks":[],"post_story_type":null}}&__user={user_id}&__a=1'
             '&__dyn=7AmajEzUGBym5Q9UoHaEWC5ECiq2WbF3oyupFLFwxBxCbzES2N6y8-bxu3fzoaqwFUgx-y28b9J1efKiVWxe6okzEswLDz8Sm2uVUKmFAdAw'
             '&__req=jsonp_{reload}&__rev=2071590&__adt={reload}')
-        
-        cursor = "{timestamp}:{post_id}".format(timestamp=last_timestamp - 10 * 60,
-                                                post_id=last_post_id)  # Remove 10 minutes fro timestamp to be sure
+
+        cursor = "{timestamp}:{post_id}".format(timestamp=int(time.time()) - 3 * 60 * 60,
+                                                post_id=last_post_id)  # Remove 3 hours from current timestamp (Thats what it does from research)
         encoded_cursor = b64encode(cursor)
-        
+
         return base_url.format(cursor=encoded_cursor,
                                g_id=group_id,
                                user_id=user_id,
                                reload=reload_id)
-    
-    def _parse_payload_from_ajax_response(self, ajax_response):
-        """
-        :param ajax_response: full response
-        """
-        
-        full_json_match = self._regexes['json_from_html'].search(ajax_response)  # Keep only json string
-        if not full_json_match:
-            return None
-        
-        full_json = full_json_match.group('json')
-        json_dict = json.loads(full_json)
-        if 'payload' in json_dict.keys():
-            return json_dict['payload']
-        return None
-    
-    def _fix_payload(self, payload):
-        """
-        :param payload: html payload
-        :return: unescaped html
-        """
-        
-        payload_html = payload.replace(r'\u003C', '<')
-        return self._html_parser.unescape(payload_html)
-    
+
     def _parse_group(self, group, last_timestamp_unix, user_id, output, reload_amount=400):
         """
         parse single group
         returns true if it got to a page there wasn't anything to extract (It got to the bottom)
         return false if it didn't get to the end
         """
-        
+
         group_url = 'https://facebook.com/{id}'.format(id=group.id)
         if not group.id in self.driver.current_url:
             self.driver.get(group_url)
             time.sleep(5)
-        
+
         reload_id = 2
         last_post_id = 0  # Init
         payload_html = self.driver.page_source
@@ -466,6 +362,7 @@ class GroupParser(object):
 
             if last_post_id == result_tuple[0]:
                 # Stop script from looping for ever
+                #TODO: Make sure it doesn't quit before it should
                 output.flush()
                 return True, i
 
@@ -481,12 +378,15 @@ class GroupParser(object):
                 output.flush()
 
             next_url = self._get_next_url(last_post_id, last_timestamp, group.id, user_id, reload_id)
+            print last_post_id, last_timestamp, group.id, user_id, reload_id
+            print next_url
+            print '------------'
             reload_id += 1
             self.driver.get(next_url)
 
             if reload_id >= 2:
                 # First time isn't from an ajax request
-                payload = self._parse_payload_from_ajax_response(self.driver.page_source)
+                payload = self._parse_payload_from_ajax_response(self.driver.page_source, source='group_posts')
                 if payload is None:
                     output.flush()
                     raise Exception("Next json payload couldn't be loaded")
@@ -503,8 +403,8 @@ class GroupParser(object):
         with open(r"C:\Users\Sid\Desktop\output.txt", 'ab+') as output:
             output.write("\r\n")  # Like that BOM won't be in front of command
             for group_id, last_post_unix in self.group_ids:
-                current_group = self._extract_group_info(group_id)
-                print 'Starting to parse group: {0}'.format(current_group.name.encode('utf-8'))
+                current_group = fb_group_parser.FBGroupParser([group_id])
+                print 'Starting to parse group: {0}'.format(current_group.group_title.encode('utf-8'))
                 try:
                     export_to_file.write_group_start(current_group, output)
                     absolute_crawl = self._parse_group(current_group, last_post_unix, user_id, output, reload_amount=reload_amount)
@@ -518,7 +418,7 @@ class GroupParser(object):
                     export_to_file.write_group_end(current_group, output)
                 print 'Done parsing group: {0}\nParsed everything: {1}'.format(current_group.name.encode('utf-8'),
                                                                                absolute_crawl)
-    
+
     def run(self, reload_amount=None):
         """
         start running the parser
@@ -526,15 +426,11 @@ class GroupParser(object):
         reload_amount = stronger_value(self.reload_amount, reload_amount)
         self.driver = webdriver.Chrome()
         my_id = self.init_connect()  # Connect to facebook
-        
+
         if my_id is None:
             raise Exception("User id not found in homepage")
-        try:
-            self._parse_all_groups(user_id=my_id, reload_amount=reload_amount)
-        except Exception, e:
-            raise e
-        finally:
-            self.driver.quit()
+        self._parse_all_groups(user_id=my_id, reload_amount=reload_amount)
+        self.driver.quit()
 
 
 class UserInfo(object):
@@ -542,53 +438,18 @@ class UserInfo(object):
     class to contain user info
     """
     
-    def __init__(self, user_name='', id='', full_name=''):
-        self.user_name = user_name
-        self.id = id
-        self.full_name = full_name
+    def __init__(self, fb_user):
+        self.fb_user = fb_user
         self.infos = set()  # will contain tuples containing (origina_info, canonized_info, info_kind). EX: (0475-864-285, 32475864285, 'belgian_phone')
-
-
-class Post(object):
-    """
-    class to contain post about a post
-    """
-    
-    def __init__(self, id='', group_id='', user_id='', date_time=''):
-        self.id = id
-        self.group_id = group_id
-        self.user_id = user_id
-        
-        if type(date_time) == int:
-            # timestamp unix
-            post_datetime = datetime.fromtimestamp(date_time)
-        elif type(date_time) == datetime:
-            post_datetime = date_time
-        else:
-            post_datetime = None
-        
-        self.date_time = post_datetime
-
-
-class Group(object):
-    def __init__(self, id='', name='', members=None):
-        self.id = id
-        self.name = name
-        self.members = members
-    
-    def __repr__(self):
-        return "group name: {name}\ngroup id: {id}\nmembers: {amount}".format(name=self.name,
-                                                                              id=self.id,
-                                                                              amount=self.members)
 
 
 class UserPost(object):
     """
     Class to contain POST info
     """
-    
+
     def __init__(self, author, group, post, commenters):
-        self.author = author  # UserInfo instance
+        self.author = author  # FBUser
         self.commenters = commenters
         self.post = post  # Post instance
         self.group = group  # Group instance
