@@ -157,6 +157,9 @@ class FBParser(object):
         self._html_parser = HTMLParser()
         self._user_id = None  # Will be initialized later
 
+    def set_driver(self, driver):
+        self.driver = driver
+
     def init_connect(self, email, password):
         """
         Connect to facebook
@@ -307,3 +310,12 @@ def _stronger_value(original_value, new_value):
     if new_value:
         return new_value
     return original_value
+
+def blankify(str_txt, wanted_type=unicode):
+    """
+    :param str_txt: Original text
+    :return: Blank string if str_txt is None
+    """
+    if str_txt is None:
+        return wanted_type('')
+    return str_txt

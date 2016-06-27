@@ -7,6 +7,9 @@ __author__ = 'Sid'
 #
 ################
 
+
+from fb_main import blankify
+
 _ACTION_AUTHOR = 1
 _ACTION_COMMENTER = 2
 
@@ -53,8 +56,8 @@ def _write_user_action(user, action, output_file):
     """
 
     output_file.write("{action}_user\t{u_id}\t{u_u_name}\t{u_f_name}\r\n".format(action=action,
-                                                                                 u_id=user.id,
-                                                                                 u_u_name=user.user_name,
+                                                                                 u_id=user.fid,
+                                                                                 u_u_name=blankify(user.user_name),
                                                                                  u_f_name=user.full_name))
 
 
@@ -127,7 +130,7 @@ def _write_group_action(group, action, output_file, encoding='utf-8'):
         action=action.encode(encoding),
         g_id=group.fid.encode(encoding),
         g_name=group.title.encode(encoding),
-        g_user=group.username.encode(encoding),
+        g_user=blankify(group.username.encode(encoding)),
         g_member=group.members,
         priv=group.privacy,
         desc=group.description,

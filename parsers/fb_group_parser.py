@@ -19,14 +19,21 @@ class FBGroupMeta(FBGroup):
                                             category, members_amount, members)
         self.meta = {'scrape_time': datetime.now()}
 
+class FBGroupParseError(Exception):
+    def __init__(self, message):
+        super(FBGroupParseError, self).__init__(message)
 
 class FBGroupParser(FBParser):
     """
     Class to parse FB Group metadata
     """
 
-    def __init__(self, group_ids, extract_members=False, load_to_db=False):
+    def __init__(self, group_ids=None, extract_members=False, load_to_db=False):
         super(FBGroupParser, self).__init__()
+
+        if group_ids is None:
+            group_ids = []
+
         self.group_ids = group_ids  # list of strings
         self.extract_members = extract_members  # boolean
         self._load_to_db = load_to_db  # boolean, load info to DB as soon as its scraped
@@ -69,6 +76,8 @@ class FBGroupParser(FBParser):
             match = tree.xpath(constants.FBXpaths.group_title)
         if len(match) > 0:
             group.title = unicode(match[0])
+        else:
+            raise FBGroupParseError("Couldn't parse title of group: {0}".format(group.fid))
 
         # Group's likers amount
         match = tree.xpath(constants.FBXpaths.group_members_amount)
@@ -230,8 +239,11 @@ class FBGroupParser(FBParser):
         all_groups = FBGroupList()
 
         for group_id in self.group_ids:
-            group = self.parse_group(group_id, extract_members, load_to_db)
-            all_groups.append(group)
+            try:
+                group = self.parse_group(group_id, extract_members, load_to_db)
+                all_groups.append(group)
+            except FBGroupParseError, e:
+                print e.message
 
         return all_groups
 
