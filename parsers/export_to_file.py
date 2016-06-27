@@ -113,7 +113,7 @@ def _write_post_action(post, action, output_file, encoding='utf-8'):
     output_file.write("{action}_post\t{p_id}\t{g_id}\t{u_id}\t{p_time}\r\n".format(action=action.encode(encoding),
                                                                                    p_id=post.fid.encode(encoding),
                                                                                    g_id=post.group.fid.encode(encoding),
-                                                                                   u_id=post.author.fid.encode(encoding),
+                                                                                   u_id=post.author.user.fid.encode(encoding),
                                                                                    p_time=date_time.encode(encoding)
                                                                                    )
                       )
@@ -132,9 +132,9 @@ def _write_group_action(group, action, output_file, encoding='utf-8'):
         g_name=group.title.encode(encoding),
         g_user=blankify(group.username).encode(encoding),
         g_member=group.members_amount,
-        priv=group.privacy.encode(encoding),
-        desc=group.description.encode(encoding),
-        cat=group.category.encode(encoding)
+        priv=blankify(group.privacy).encode(encoding),
+        desc=blankify(group.description).encode(encoding),
+        cat=blankify(group.category).encode(encoding)
         )
     )
 
@@ -148,9 +148,9 @@ def write_user_post(user_post, output_file):
 
     write_post_start(user_post, output_file)  # user_id of author is written there
 
-    write_user_infos(user_post.author, 'author', output_file)
+    write_user_infos(user_post.author, 'author', output_file)  # user_post.author is UserInfo instance
     for commenter in user_post.commenters:
-        write_user_infos(commenter, 'commenter', output_file)
+        write_user_infos(commenter, 'commenter', output_file)  # commenter is UserInfo instance
 
     write_post_end(user_post, output_file)
 
@@ -163,17 +163,19 @@ def write_user_infos(user, action, output_file, encoding='utf-8'):
     We MUST also write user_id because of the commenters. Author's user_id can be found be joining to the post
     """
 
-    output_file.write("add_user\t{id}\t{user_name}\t{full_name}\r\n".format(id=user.fid.encode(encoding),
-                                                                            user_name=blankify(user.user_name).encode(encoding),
-                                                                            full_name=user.full_name.encode(encoding)
-                                                                            )
+    output_file.write("add_user\t{id}\t{user_name}\t{full_name}\r\n"
+                      .format(id=user.user.fid.encode(encoding),
+                              user_name=blankify(user.user.user_name).encode(encoding),
+                              full_name=user.user.full_name.encode(encoding)
+                              )
                       )
+
     if not user.infos:
         user.infos.add(('', '', ''))  # At least the user will be written
 
     for info in user.infos:
         output_file.write("add_info\t{u_id}\t{action}\t{i_kind}\t{i_canonized}\t{i_original}\r\n".format(
-            u_id=user.fid.encode(encoding),
+            u_id=user.user.fid.encode(encoding),
             action=action.encode(encoding),
             i_kind=info[2].encode(encoding),
             i_canonized=info[0].encode(encoding),
