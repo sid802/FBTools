@@ -130,11 +130,11 @@ def _write_group_action(group, action, output_file, encoding='utf-8'):
         action=action.encode(encoding),
         g_id=group.fid.encode(encoding),
         g_name=group.title.encode(encoding),
-        g_user=blankify(group.username.encode(encoding)),
+        g_user=blankify(group.username).encode(encoding),
         g_member=group.members,
-        priv=group.privacy,
-        desc=group.description,
-        cat=group.category
+        priv=group.privacy.encode(encoding),
+        desc=group.description.encode(encoding),
+        cat=group.category.encode(encoding)
         )
     )
 
