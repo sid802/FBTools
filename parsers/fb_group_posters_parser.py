@@ -82,9 +82,6 @@ class FBGroupInfosParser(FBParser):
 
         xpaths = {}
 
-        # xpath to full post, containing comments (a post has an attribute named 'data-ft' with a tl_objid key
-        xpaths['full_post'] = "//div[contains(@data-ft,'tl_objid')]"
-
         # xpaths to the content itself and the comment section
         xpaths['post_content'] = ".//p/parent::*"
 
@@ -96,12 +93,9 @@ class FBGroupInfosParser(FBParser):
 
         # Comment Xpath's
         xpaths['post_comments'] = ".//div[contains(@class, 'UFIContainer')]//div[@class='UFICommentContent']"
-        xpaths['comment_meta'] = './/a[contains(@class,"UFICommentActorName")]'
         xpaths['comment_author_fid'] = './@data-hovercard'  # URL's need further parsing, relative to meta
         xpaths['comment_author_username'] = './@href'  # URL's need further parsing, relative to meta
         xpaths['comment_author_fullname'] = './span/text()'  # relative to meta
-
-        xpaths['comment_text'] = './/span[contains(@class,"UFICommentBody")]'  # Relative to comment
 
         xpaths['post_timestamp'] = './/abbr/@data-utime[1]'  # Relative to post
         xpaths['post_id'] = './@id'  # Relative to post, needed further parsing
@@ -131,7 +125,20 @@ class FBGroupInfosParser(FBParser):
 
         return result
 
-    def _parse_user(self, post_node):
+    def _parse_author(self, post_node):
+        """
+        :param post_node: Node representing the current post (Xpath)
+        :return: UserInfo instance for author
+        """
+        post_author_nodes = post_node.xpath(constants.FBXpaths.post_author)
+        if not post_author_nodes:
+            return None
+
+        post_author = post_author_nodes[0]
+        return self._parse_user_from_link(post_author)
+
+
+    def _parse_commenter(self, post_node):
         """
         :param post_node: Html node representing the current post
         :return: UserInfo instance - only USER
@@ -156,8 +163,8 @@ class FBGroupInfosParser(FBParser):
         for country, canonizer in self._canonizers.iteritems():
             # Find all phone numbers and canonize
             country_phone = canonizer._country_phone
-            finding_regex = country_phone.to_find_regex(strict=False, canonized=False, optional_country=True,
-                                                        stuck_zero=True)
+            finding_regex = country_phone.to_find_regex(is_strict=False, is_canonized=False,
+                                                        optional_country=True, stuck_zero=True)
             phone_matches = finding_regex.finditer(text)
             for phone_match in phone_matches:
                 phone = phone_match.group('phone')
@@ -208,7 +215,7 @@ class FBGroupInfosParser(FBParser):
 
         return self._parse_info_from_text(post_content)
 
-    def _parse_user_info(self, post_node):
+    def _parse_author_user_info(self, post_node):
         """
         :param post_node: Html node representing the current post
         :return: UserInfo instance (names, info)
@@ -217,21 +224,6 @@ class FBGroupInfosParser(FBParser):
         user = self._parse_user(post_node)
         user.infos = self._parse_info_from_node(post_node)
         return user
-
-    def _parse_user_from_comment(self, comment_xpath):
-        """
-        :param comment_xpath: xpath node to current comment
-        :return: FBUser instance of comment's user
-        """
-
-        comment_meta_lst = comment_xpath.xpath(self._xpaths['comment_meta'])
-
-        if comment_meta_lst:
-            comment_meta = comment_meta_lst[0]
-            commenter = self._parse_user_from_link(comment_meta)
-            return commenter
-
-        return None
 
     def _parse_user_infos_from_comment(self, comments_xpath):
         """
@@ -242,8 +234,8 @@ class FBGroupInfosParser(FBParser):
         all_commenters = set()  # Set of user_info's
 
         for comment in comments_xpath:
-            user_info = self._parse_user_from_comment(comment)
-            comment_content_lst = self._xpaths['comment_text']
+            user_info = self._parse_commenter(comment)
+            comment_content_lst = comments_xpath.xpath(constants.FBXpaths.post_text)
             if comment_content_lst:
                 comment_content = comment_content_lst[0]
                 infos = self._parse_info_from_text(comment_content)
@@ -288,7 +280,7 @@ class FBGroupInfosParser(FBParser):
         last_timestamp = None
 
         for post in all_posts:
-            author_info = self._parse_user_info(post)
+            author_info = self._parse_author_user_info(post)
             comments = post.xpath(self._xpaths['post_comments'])
             commenters_infos = self._parse_user_infos_from_comment(comments)
 
@@ -302,7 +294,7 @@ class FBGroupInfosParser(FBParser):
 
             export_to_file.write_user_post(current_post, output_file)
 
-        return current_post.id, last_timestamp
+        return current_post.fid, last_timestamp
 
     def _get_next_url(self, last_post_id, last_timestamp, group_id, user_id, reload_id):
         """
@@ -338,8 +330,8 @@ class FBGroupInfosParser(FBParser):
         return false if it didn't get to the end
         """
 
-        group_url = 'https://facebook.com/{id}'.format(id=group.id)
-        if not group.id in self.driver.current_url:
+        group_url = 'https://facebook.com/{id}'.format(id=group.fid)
+        if not group.fid in self.driver.current_url:
             self.driver.get(group_url)
             time.sleep(5)
 
@@ -373,8 +365,8 @@ class FBGroupInfosParser(FBParser):
                 # Flush each 10 pages
                 output.flush()
 
-            next_url = self._get_next_url(last_post_id, last_timestamp, group.id, user_id, reload_id)
-            print last_post_id, last_timestamp, group.id, user_id, reload_id
+            next_url = self._get_next_url(last_post_id, last_timestamp, group.fid, user_id, reload_id)
+            print last_post_id, last_timestamp, group.fid, user_id, reload_id
             print next_url
             print '------------'
             reload_id += 1
@@ -409,6 +401,7 @@ class FBGroupInfosParser(FBParser):
                     continue
 
                 print 'Starting to parse group: {0}'.format(blankify(current_group.title).encode('utf-8'))
+
                 try:
                     export_to_file.write_group_start(current_group, output)
                     absolute_crawl = self._parse_group(current_group, last_post_unix, user_id, output, reload_amount=reload_amount)

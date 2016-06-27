@@ -57,5 +57,10 @@ class FBXpaths(object):
     group_privacy = '//div[@id="fbProfileCover"]//a[@data-hover]/span/text()'
     group_member_urls = '//a[@data-hovercard and not(@class)]'
 
-    # Posts
+    # Group Posts
+
+    # xpath to full post, containing comments (a post has an attribute named 'data-ft' with a tl_objid key
+    group_posts = "//div[contains(@data-ft,'tl_objid')]"
+    post_author = ".//a[@data-hovercard]"
     post_commenter = '//a[contains(@class,"UFICommentActorName")]'
+    post_text = './/span[contains(@class,"UFICommentBody")]'  # Relative to comment
