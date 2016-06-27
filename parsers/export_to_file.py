@@ -126,7 +126,7 @@ def _write_group_action(group, action, output_file, encoding='utf-8'):
     output_file.write("{action}_group\t{g_id}\t{g_name}\t{g_user}\t{g_member}\t{priv}\t{desc}\t{cat}\r\n".format(
         action=action.encode(encoding),
         g_id=group.fid.encode(encoding),
-        g_name=group.title_name.encode(encoding),
+        g_name=group.title.encode(encoding),
         g_user=group.username.encode(encoding),
         g_member=group.members,
         priv=group.privacy,

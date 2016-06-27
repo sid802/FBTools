@@ -405,7 +405,7 @@ class FBGroupInfosParser(FBParser):
                 except IndexError, e:
                     print "Couldn't parse group metadata with FID: {0}".format(group_id)
                     continue
-                print 'Starting to parse group: {0}'.format(current_group.group_title.encode('utf-8'))
+                print 'Starting to parse group: {0}'.format(current_group.title.encode('utf-8'))
                 try:
                     export_to_file.write_group_start(current_group, output)
                     absolute_crawl = self._parse_group(current_group, last_post_unix, user_id, output, reload_amount=reload_amount)

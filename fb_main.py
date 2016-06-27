@@ -90,11 +90,11 @@ class FBPage(FBNode):
         self.long_description = long_description
 
 class FBGroup(FBNode):
-    def __init__(self, fbid, group_user=None, group_title=None, privacy=None, description=None,
+    def __init__(self, fbid, username=None, title=None, privacy=None, description=None,
                  category=None, members_amount=None, members=None):
         super(FBGroup, self).__init__(fbid)
-        self.group_user = group_user  # username (string)
-        self.group_title = group_title  # full name (string)
+        self.username = username  # username (string)
+        self.title = title  # full name (string)
         self.privacy = privacy  # string
         self.description = description  # string
         self.members_amount = members_amount  # int
@@ -116,7 +116,7 @@ class FBGroup(FBNode):
                        r"PRIVACY=%(priv)s, MEMBERS_AMOUNT=%(members)s, LAST_META_PARSE=%(time)s"
 
         cursor.execute(GROUP_INSERT, {
-            'id': self.fid, 'name': self.group_title, 'user': self.group_user, 'desc': self.description,
+            'id': self.fid, 'name': self.title, 'user': self.username, 'desc': self.description,
             'cat': self.category, 'priv': self.privacy, 'members': self.members_amount, 'time': parse_time
         })
 

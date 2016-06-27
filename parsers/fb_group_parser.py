@@ -13,18 +13,10 @@ class FBGroupMeta(FBGroup):
     """
     Extension of FBGroup which adds metadata of the parsing itself
     """
-    def __init__(self, fbid, group_user=None, group_title=None, privacy=None, description=None,
+    def __init__(self, fbid, username=None, title=None, privacy=None, description=None,
                  category=None, members_amount=None, members=None):
-        super(FBGroupMeta, self).__init__(fbid, group_user, group_title, privacy, description,
+        super(FBGroupMeta, self).__init__(fbid, username, title, privacy, description,
                                             category, members_amount, members)
-        self.group_user = group_user  # username (string)
-        self.group_title = group_title  # full name (string)
-        self.privacy = privacy  # string
-        self.description = description  # string
-        self.members_amount = members_amount  # int
-        self.members = members  # list of FBUsers
-        self.category = category  # Category (string)
-
         self.meta = {'scrape_time': datetime.now()}
 
 
@@ -64,7 +56,7 @@ class FBGroupParser(FBParser):
             if user_name.isdigit():
                 # No username exists, it got FID
                 user_name = None
-            group.group_user = user_name
+            group.username = user_name
 
         tree = html.fromstring(self.driver.page_source)
 
@@ -76,7 +68,7 @@ class FBGroupParser(FBParser):
             retries += 1
             match = tree.xpath(constants.FBXpaths.group_title)
         if len(match) > 0:
-            group.group_title = unicode(match[0])
+            group.title = unicode(match[0])
 
         # Group's likers amount
         match = tree.xpath(constants.FBXpaths.group_members_amount)
