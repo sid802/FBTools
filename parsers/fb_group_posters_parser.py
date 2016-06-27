@@ -223,8 +223,9 @@ class FBGroupInfosParser(FBParser):
         """
 
         user = self._parse_author(post_node)
-        user.infos = self._parse_info_from_node(post_node)
-        return user
+        user_infos = UserInfo(fb_user=user)
+        user_infos.infos = self._parse_info_from_node(post_node)
+        return user_infos
 
     def _parse_user_infos_from_comment(self, comments_xpath):
         """
@@ -292,6 +293,7 @@ class FBGroupInfosParser(FBParser):
                 last_timestamp = previous_timestamp  # last_timestamp is previous again (which isn't None)
 
             current_post.commenters = commenters_infos
+            current_post.author = author_info  # Switch default author parsing with FBUser, to UserInfo
 
             export_to_file.write_user_post(current_post, output_file)
 
@@ -437,7 +439,7 @@ class UserInfo(object):
     """
     
     def __init__(self, fb_user):
-        self.fb_user = fb_user
+        self.user = fb_user
         self.infos = set()  # will contain tuples containing (origina_info, canonized_info, info_kind). EX: (0475-864-285, 32475864285, 'belgian_phone')
 
 
