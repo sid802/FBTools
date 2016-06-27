@@ -165,6 +165,7 @@ class FBGroupInfosParser(FBParser):
             country_phone = canonizer._country_phone
             finding_regex = country_phone.to_find_regex(is_strict=False, is_canonized=False,
                                                         optional_country=True, stuck_zero=True)
+
             phone_matches = finding_regex.finditer(text)
             for phone_match in phone_matches:
                 phone = phone_match.group('phone')
@@ -221,7 +222,7 @@ class FBGroupInfosParser(FBParser):
         :return: UserInfo instance (names, info)
         """
 
-        user = self._parse_user(post_node)
+        user = self._parse_author(post_node)
         user.infos = self._parse_info_from_node(post_node)
         return user
 
@@ -235,9 +236,9 @@ class FBGroupInfosParser(FBParser):
 
         for comment in comments_xpath:
             user_info = self._parse_commenter(comment)
-            comment_content_lst = comments_xpath.xpath(constants.FBXpaths.post_text)
+            comment_content_lst = comment.xpath(constants.FBXpaths.post_text)
             if comment_content_lst:
-                comment_content = comment_content_lst[0]
+                comment_content = comment_content_lst[0].text_content()
                 infos = self._parse_info_from_text(comment_content)
                 user_info.infos = infos
 
@@ -273,7 +274,7 @@ class FBGroupInfosParser(FBParser):
 
         html_tree = html.fromstring(parse_src)
 
-        all_posts = html_tree.xpath(self._xpaths['full_post'])
+        all_posts = html_tree.xpath(constants.FBXpaths.group_posts)
         if not all_posts:
             raise ClosedGroupException("Probably got to a Closed group")
 
@@ -413,7 +414,7 @@ class FBGroupInfosParser(FBParser):
                     continue
                 finally:
                     export_to_file.write_group_end(current_group, output)
-                print 'Done parsing group: {0}\nParsed everything: {1}'.format(current_group.name.encode('utf-8'),
+                print 'Done parsing group: {0}\nParsed everything: {1}'.format(current_group.title.encode('utf-8'),
                                                                                absolute_crawl)
 
     @FBParser.browser_needed

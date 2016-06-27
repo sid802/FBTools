@@ -108,12 +108,12 @@ def _write_post_action(post, action, output_file, encoding='utf-8'):
     if post.date_time is None:
         date_time = ''
     else:
-        date_time = post.date_time.strftime("%d/%m/%Y %H:%M")
+        date_time = post.date_time.strftime(u"%d/%m/%Y %H:%M")
 
     output_file.write("{action}_post\t{p_id}\t{g_id}\t{u_id}\t{p_time}\r\n".format(action=action.encode(encoding),
-                                                                                   p_id=post.id.encode(encoding),
-                                                                                   g_id=post.group_id.encode(encoding),
-                                                                                   u_id=post.user_id.encode(encoding),
+                                                                                   p_id=post.fid.encode(encoding),
+                                                                                   g_id=post.group.fid.encode(encoding),
+                                                                                   u_id=post.author.fid.encode(encoding),
                                                                                    p_time=date_time.encode(encoding)
                                                                                    )
                       )
@@ -131,7 +131,7 @@ def _write_group_action(group, action, output_file, encoding='utf-8'):
         g_id=group.fid.encode(encoding),
         g_name=group.title.encode(encoding),
         g_user=blankify(group.username).encode(encoding),
-        g_member=group.members,
+        g_member=group.members_amount,
         priv=group.privacy.encode(encoding),
         desc=group.description.encode(encoding),
         cat=group.category.encode(encoding)
@@ -146,13 +146,13 @@ def write_user_post(user_post, output_file):
     :return:
     """
 
-    write_post_start(user_post.post, output_file)  # user_id of author is written there
+    write_post_start(user_post, output_file)  # user_id of author is written there
 
     write_user_infos(user_post.author, 'author', output_file)
     for commenter in user_post.commenters:
         write_user_infos(commenter, 'commenter', output_file)
 
-    write_post_end(user_post.post, output_file)
+    write_post_end(user_post, output_file)
 
 
 def write_user_infos(user, action, output_file, encoding='utf-8'):
@@ -163,8 +163,8 @@ def write_user_infos(user, action, output_file, encoding='utf-8'):
     We MUST also write user_id because of the commenters. Author's user_id can be found be joining to the post
     """
 
-    output_file.write("add_user\t{id}\t{user_name}\t{full_name}\r\n".format(id=user.id.encode(encoding),
-                                                                            user_name=user.user_name.encode(encoding),
+    output_file.write("add_user\t{id}\t{user_name}\t{full_name}\r\n".format(id=user.fid.encode(encoding),
+                                                                            user_name=blankify(user.user_name).encode(encoding),
                                                                             full_name=user.full_name.encode(encoding)
                                                                             )
                       )
@@ -173,7 +173,7 @@ def write_user_infos(user, action, output_file, encoding='utf-8'):
 
     for info in user.infos:
         output_file.write("add_info\t{u_id}\t{action}\t{i_kind}\t{i_canonized}\t{i_original}\r\n".format(
-            u_id=user.id.encode(encoding),
+            u_id=user.fid.encode(encoding),
             action=action.encode(encoding),
             i_kind=info[2].encode(encoding),
             i_canonized=info[0].encode(encoding),
@@ -189,4 +189,4 @@ def write_absolute_parse(group, output_file):
     Writes a command that group has absolutely been parsed
     """
 
-    output_file.write("abs_parse\t{id}\r\n".format(id=group.id))
+    output_file.write("abs_parse\t{id}\r\n".format(id=group.fid))

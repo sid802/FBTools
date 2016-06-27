@@ -120,7 +120,7 @@ class FBGroup(FBNode):
             'cat': self.category, 'priv': self.privacy, 'members': self.members_amount, 'time': parse_time
         })
 
-class FBPost(object):
+class FBPost(FBNode):
     """
     class to contain post about a post
     """
