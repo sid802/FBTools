@@ -1,4 +1,14 @@
 #-*- encoding: utf-8 -*-
+
+# Hi! I just saw your facebook group parse, Its amazing !,
+# I actually started working on a website that will parse groups of jobs
+# And when I searched for how to parse the /ajax/pagelet/generic.php/GroupEntstreamPagelet I found this project.
+# I want my website to help people get a job and send resume fast.
+
+# Can you help me with this project? if so please contact me at dudinirgad@gmail.com, btw I am from Israel too =]
+
+
+
 __author__ = 'Sid'
 from HTMLParser import HTMLParser
 import json
