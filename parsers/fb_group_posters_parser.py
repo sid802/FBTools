@@ -456,7 +456,7 @@ class FBGroupInfosParser(FBParser):
         start parsing the groups
         """
         reload_amount = _stronger_value(self.reload_amount, reload_amount)
-        output_path = 'logs/output_{0}.txt'.format(datetime.now().strftime('%Y%m%d-%H%M%S'))
+        output_path = 'logs/output_{0}.NEW.txt'.format(datetime.now().strftime('%Y%m%d-%H%M%S'))
         print 'Log path is: {0}'.format(os.path.abspath(output_path))
         with open(output_path, 'ab+') as output:
             output.write("\r\n")  # Like that BOM won't be in front of command
