@@ -9,7 +9,7 @@ __author__ = 'Sid'
 
 from mysql import connector
 from datetime import datetime
-import os
+import os, shutil
 from glob import glob
 
 
@@ -160,17 +160,27 @@ def get_dir_path():
         path = raw_input("Enter path to Directory: ")
     return path
 
+def file_path_to_imported(file_path):
+    """
+    :param file_path: original file path that needs renaming (must finish with .NEW.<EXTENSION>)
+    :return: changes "NEW" part in to "IMPORTED"
+    """
+    file_parts = file_path.split('.')
+    file_parts[-2] = 'IMPORTED'
+    return '.'.join(file_parts)
 
-def main(dir_path=None):
+def main(dir_path):
     if dir_path is None:
         dir_path = get_dir_path()
 
-    file_paths = glob("{path}/*.txt".format(path=dir_path))  # Choose only .txt files in dir
+    file_paths = glob("{path}/*.NEW.txt".format(path=dir_path))  # Choose only .txt files in dir
     for file_path in file_paths:
         import_file(file_path)
+        new_file_path = file_path_to_imported(file_path)
+        shutil.move(file_path, new_file_path)
 
     raw_input('Press Enter to exit\n')
 
 
 if __name__ == '__main__':
-    main()
+    main('./logs')
