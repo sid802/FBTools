@@ -9,7 +9,7 @@ __author__ = 'Sid'
 #
 ##############################################
 
-import re, time, sys, json
+import re, time, sys, json, os
 from base64 import b64encode
 from HTMLParser import HTMLParser
 from datetime import datetime
@@ -456,7 +456,9 @@ class FBGroupInfosParser(FBParser):
         start parsing the groups
         """
         reload_amount = _stronger_value(self.reload_amount, reload_amount)
-        with open(r"C:\Users\Sid\Desktop\output.txt", 'ab+') as output:
+        output_path = 'logs/output_{0}.txt'.format(datetime.now().strftime('%Y%m%d-%H%M%S'))
+        print 'Log path is: {0}'.format(os.path.abspath(output_path))
+        with open(output_path, 'ab+') as output:
             output.write("\r\n")  # Like that BOM won't be in front of command
             for group_id, last_post_unix in self.group_ids:
                 parser = fb_group_parser.FBGroupParser()
@@ -468,7 +470,8 @@ class FBGroupInfosParser(FBParser):
                     print "Couldn't parse title of group: {0}".format(group_id)
                     continue
 
-                if 'Closed' in current_group.privacy:
+                posts_in_page = html.fromstring(self.driver.page_source).xpath(constants.FBXpaths.group_posts)
+                if len(posts_in_page) == 0 and 'closed' in current_group.privacy.lower():
                     print "The group is closed. This script only parses open groups!"
                     continue
 
@@ -628,7 +631,7 @@ if __name__ == '__main__':
         args = sys.argv[1:]
 
         if len(args) == 4:
-            group_ids = args[3]
+            group_ids = [(args[3], None)]
         elif len(args) == 3:
             group_ids = get_wanted_group_ids()
 
