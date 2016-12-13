@@ -227,7 +227,7 @@ class FBGroupInfosParser(FBParser):
         user_infos.infos = self._parse_info_from_node(post_node)
         return user_infos
 
-    def _parse_user_infos_from_comment(self, comments_xpath):
+    def _parse_user_infos_from_comments(self, comments_xpath):
         """
         :param comments_xpath: xpath containing all comments
         :return: distinct user_infos who commented
@@ -246,6 +246,18 @@ class FBGroupInfosParser(FBParser):
             all_commenters.add(user_info)
 
         return all_commenters
+
+    def _parse_max_timestamp_from_comments(self, comments):
+        """
+        :param comment: Xpath list of all comment
+        :return: int - Maximum timestamp of the comments. 0 if no comment exists
+        """
+
+        timestamps = map(lambda comment: comment.xpath(constants.FBXpaths.post_comment_timestamp), comments)
+        if len(timestamps) == 0:
+            return 0
+        return max(filter(lambda x: len(x) > 0, timestamps))
+
 
     def _parse_post(self, group, author, post_xpath):
         """
@@ -271,6 +283,7 @@ class FBGroupInfosParser(FBParser):
         :param group: current Group instance
         :param parse_src: src (string) to parse from
         :param output_file: handle to file where to write the results
+        :return: Tuple of last parsed post's id, its maximum associated timestamp (post and its comments) and amount of parsed posts
         """
 
         html_tree = html.fromstring(parse_src)
@@ -283,8 +296,6 @@ class FBGroupInfosParser(FBParser):
 
         for post in all_posts:
             author_info = self._parse_author_user_info(post)
-            comments = post.xpath(self._xpaths['post_comments'])
-            commenters_infos = self._parse_user_infos_from_comment(comments)
 
             previous_timestamp = last_timestamp  # Save previous in case current is None
             current_post, last_timestamp = self._parse_post(group, author_info, post)
@@ -292,23 +303,31 @@ class FBGroupInfosParser(FBParser):
             if not last_timestamp:
                 last_timestamp = previous_timestamp  # last_timestamp is previous again (which isn't None)
 
+            comments = post.xpath(self._xpaths['post_comments'])
+            commenters_infos = self._parse_user_infos_from_comments(comments)
+            max_comment_timestamp = self._parse_max_timestamp_from_comments(comments)
+            last_timestamp = max(max_comment_timestamp, last_timestamp)
+
             current_post.commenters = commenters_infos
             current_post.author = author_info  # Switch default author parsing with FBUser, to UserInfo
 
             export_to_file.write_user_post(current_post, output_file)
 
-        return current_post.fid, last_timestamp
+        return current_post.fid, last_timestamp, len(all_posts)
 
-    def _get_next_url(self, last_post_id, last_timestamp, group_id, user_id, reload_id):
+    def _get_next_url(self, posts_extracted, last_post_id, last_timestamp, group_id, user_id, reload_id):
         """
+        :param posts_extracted: int - amount of posts
         :param last_post_id: id of the last post extracted
-        :param last_timestamp: unix timestamp of the last pod extracted
+        :param last_timestamp: unix timestamp of the latest comment on the last post extracted (post timestamp if no comment)
         :param group_id: group_id of group we are currently extracting
         :param user_id: user id of current connected user
         :param reload_id: index of current reload (starts with 1)
         :return: formatted string
         """
 
+        # Deprecated in 27/06/2016
+        """
         base_url = (
             'https://www.facebook.com/ajax/pagelet/generic.php/GroupEntstreamPagelet?__pc=EXP1:react_composer_pkg'
             '&ajaxpipe=1&ajaxpipe_token=AXhY1JWsfBFKhhsj&no_script_path=1'
@@ -316,15 +335,42 @@ class FBGroupInfosParser(FBParser):
             '"group_id":{g_id},"has_cards":true,"multi_permalinks":[],"post_story_type":null}}&__user={user_id}&__a=1'
             '&__dyn=7AmajEzUGBym5Q9UoHaEWC5ECiq2WbF3oyupFLFwxBxCbzES2N6y8-bxu3fzoaqwFUgx-y28b9J1efKiVWxe6okzEswLDz8Sm2uVUKmFAdAw'
             '&__req=jsonp_{reload}&__rev=2071590&__adt={reload}')
+        """
 
-        cursor = "{timestamp}:{post_id}".format(timestamp=int(time.time()) - 3 * 60 * 60,
-                                                post_id=last_post_id)  # Remove 3 hours from current timestamp (Thats what it does from research)
-        encoded_cursor = b64encode(cursor)
+        # Deprecated 12/10/2016
+        """
+        base_url = (
+            'https://www.facebook.com/ajax/pagelet/generic.php/GroupEntstreamPagelet?'
+            'data={{"end_cursor":"{cursor}","group_id":{g_id},"multi_permalinks":[]}}'
+            '&__user={user_id}&__a=1&__adt={reload}'
+        )
+        """
 
-        return base_url.format(cursor=encoded_cursor,
-                               g_id=group_id,
-                               user_id=user_id,
-                               reload=reload_id)
+        base_url = (
+            'https://www.facebook.com/ajax/pagelet/generic.php/GroupEntstreamPagelet?'
+            'data={{"last_view_time":0,"is_file_history":null,"is_first_story_seen":true,"permalink_story_index":{n_index},'
+            '"end_cursor":"{cursor}","group_id":{g_id},'
+            '"has_cards":true,"multi_permalinks":[],"posts_visible":{p_extracted}}}&__user={u_id}&__a=1'
+            '&__dyn=7AmajEzUGByA5Q9UoHaEWC5EWq2WiWF3oyeqrWo8popyUWdwIhE98nwgUaqwHx24UJi28rxuF8W49XDG4XzErz8iGta3iaVVojxCVEiHWCDxh1rDAzUO5u5od8a8Cium8yUgx66EK3O69L-6Z1im7WxWKiaggzETxqayoHypFu6Gx2'
+            '&__req=jsonp_{reload}&__rev=2732669&__adt={reload}'
+        )
+
+
+        cursor = "{timestamp}:{post_id}::".format(timestamp=last_timestamp,
+                                                  post_id=last_post_id)  # Remove 3 hours from current timestamp (Thats what it does from research)
+        if last_post_id is None and last_timestamp is None:
+            encoded_cursor = ""
+        else:
+            encoded_cursor = b64encode(cursor)
+
+        return base_url.format(
+            n_index=posts_extracted + 1,
+            cursor=encoded_cursor,
+            p_extracted=posts_extracted,
+            g_id=group_id,
+            u_id=user_id,
+            reload=reload_id
+        )
 
     def _parse_group(self, group, last_timestamp_unix, user_id, output, reload_amount=400):
         """
@@ -340,10 +386,27 @@ class FBGroupInfosParser(FBParser):
 
         reload_id = 2
         last_post_id = 0  # Init
-        payload_html = self.driver.page_source
+        last_timestamp = int(time.time())  # Current timestamp
+        parsed_posts = 0
 
-        for i in xrange(2, reload_amount + 1):
+        #TODO: Test with first load, test get_next_url and script itself!
+
+        for i in xrange(1, reload_amount + 1):
             # Parse reload_amount of pages
+
+            next_url = self._get_next_url(parsed_posts, last_post_id, last_timestamp, group.fid, user_id, reload_id)
+            print next_url
+            reload_id += 1
+            self.driver.get(next_url)
+
+            page_source = self._get_page_source(self.driver)
+            payload = self._parse_payload_from_ajax_response(page_source,
+                                                             source='group_posts')
+            if payload is None:
+                output.flush()
+                raise Exception("Next json payload couldn't be loaded")
+            payload_html = self._fix_payload(payload)  # Get unicode strings
+
             try:
                 result_tuple = self._parse_page(group, payload_html, output)
             except html.etree.XMLSyntaxError:
@@ -355,9 +418,9 @@ class FBGroupInfosParser(FBParser):
                 # Stop script from looping for ever
                 #TODO: Make sure it doesn't quit before it should
                 output.flush()
-                return True, i
+                return False, i
 
-            last_post_id, last_timestamp = result_tuple
+            last_post_id, last_timestamp, parsed_posts = result_tuple
 
             if last_timestamp is not None and last_timestamp < last_timestamp_unix:
                 # From here on, posts have already been written in DB
@@ -368,23 +431,25 @@ class FBGroupInfosParser(FBParser):
                 # Flush each 10 pages
                 output.flush()
 
-            next_url = self._get_next_url(last_post_id, last_timestamp, group.fid, user_id, reload_id)
-            print last_post_id, last_timestamp, group.fid, user_id, reload_id
-            print next_url
-            print '------------'
-            reload_id += 1
-            self.driver.get(next_url)
-
-            if reload_id >= 2:
-                # First time isn't from an ajax request
-                payload = self._parse_payload_from_ajax_response(self.driver.page_source, source='group_posts')
-                if payload is None:
-                    output.flush()
-                    raise Exception("Next json payload couldn't be loaded")
-                payload_html = self._fix_payload(payload)
-
         output.flush()
         return False, i
+
+    @staticmethod
+    def _get_page_source(driver):
+        """
+        :param driver: Selenium Driver
+        :return: page source.
+        Retries 5 times if page_source is empty
+        """
+        retries = 0
+        page_source = driver.page_source
+        while len(page_source) == 0 and retries < 5:
+            page_source = driver.page_source
+            time.sleep(1.5)
+            retries += 1
+        return page_source
+
+
 
     def _parse_all_groups(self, user_id, reload_amount=400):
         """
@@ -403,21 +468,27 @@ class FBGroupInfosParser(FBParser):
                     print "Couldn't parse title of group: {0}".format(group_id)
                     continue
 
-                print 'Starting to parse group: {0}'.format(blankify(current_group.title).encode('utf-8'))
+                if 'Closed' in current_group.privacy:
+                    print "The group is closed. This script only parses open groups!"
+                    continue
 
                 try:
                     export_to_file.write_group_start(current_group, output)
+                    print 'Starting to parse group: {0}'.format(blankify(current_group.title).encode('utf-8'))
                     absolute_crawl = self._parse_group(current_group, last_post_unix, user_id, output, reload_amount=reload_amount)
                     if absolute_crawl[0]:
                         export_to_file.write_absolute_parse(current_group, output)
+                    export_to_file.write_group_end(current_group, output)
+                    print 'Done parsing group: {0}\nParsed everything: {1}'.format(current_group.title.encode('utf-8'),
+                                                                                   absolute_crawl)
 
                 except ClosedGroupException:
+                    # Shouldn't get here unless the FB page isn't in english
                     print "The group is closed. This script only parses open groups!"
-                    continue
-                finally:
                     export_to_file.write_group_end(current_group, output)
-                print 'Done parsing group: {0}\nParsed everything: {1}'.format(current_group.title.encode('utf-8'),
-                                                                               absolute_crawl)
+                    continue
+
+
 
     @FBParser.browser_needed
     def run(self, email, password, reload_amount=None):
