@@ -30,12 +30,12 @@ def insert_group(values_array, db_cursor):
     :return: group_id
     """
     GROUP_INSERT = r"INSERT INTO GROUPS (ID, NAME_R, USERNAME, MEMBERS_AMOUNT, PRIVACY, " \
-                   r"DESCRIPTION, CATEGORY, LAST_EXTRACTION) " \
+                   r"DESCRIPTION, CATEGORY, LAST_INFO_EXTRACTION) " \
                    r"VALUES (%(id)s, %(name)s, %(user)s, %(members)s, %(priv)s, %(desc)s," \
                    r"%(cat)s, %(last)s) " \
                    r"ON DUPLICATE KEY " \
                    r"UPDATE NAME_R=%(name)s, USERNAME=%(user)s, MEMBERS_AMOUNT=%(members)s, " \
-                   r"PRIVACY=%(priv)s, DESCRIPTION=%(desc)s, CATEGORY=%(cat)s, LAST_EXTRACTION=%(last)s"
+                   r"PRIVACY=%(priv)s, DESCRIPTION=%(desc)s, CATEGORY=%(cat)s, LAST_INFO_EXTRACTION=%(last)s"
 
     group_id, group_name, group_user, members_amount, privacy, description, category = values_array
     members_amount = nullify(members_amount)
@@ -43,7 +43,7 @@ def insert_group(values_array, db_cursor):
     db_cursor.execute(GROUP_INSERT,
                              {'id': group_id, 'name': group_name, 'user': group_user,
                               'members': nullify(members_amount), 'priv': privacy, 'desc': description,
-                              'category': category, 'last': datetime.now()
+                              'cat': category, 'last': datetime.now()
                               }
                              )
 
