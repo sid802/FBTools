@@ -60,7 +60,8 @@ class FBXpaths(object):
     # Group Posts
 
     # xpath to full post, containing comments (a post has an attribute named 'data-ft' with a tl_objid key
-    group_posts = "//div[contains(@data-ft,'tl_objid')]"
+    group_posts = "//div[contains(@id,'mall_post')]"
     post_author = ".//a[@data-hovercard and not(@tabindex)]"
-    post_commenter = './/a[contains(@class,"UFICommentActorName")]'
+    post_commenter = './/a[contains(@class,"UFIComment")]'
+    post_comment_timestamp = './/abr[@class="livetimestamp"]/@data-utime'
     post_text = './/span[contains(@class,"UFICommentBody")]'  # Relative to comment
