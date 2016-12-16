@@ -15,8 +15,8 @@ class StripStartFormatter(logging.Formatter):
         self._fmt = fmt
 
     def format(self, record):
-        cleaned_record = self.pattern.sub('', record)
-        return logging.Formatter.format(self, cleaned_record)
+        record.msg = self.pattern.sub(u'', record.msg)
+        return logging.Formatter.format(self, record)
 
 class StartFilter(logging.Filter):
     """
@@ -55,8 +55,8 @@ class LoggerManager(object):
         :return: Logger object correctly instantiated
         """
         now_string = datetime.now().strftime("%Y-%m-%d-%H%M%S")
-        log_results_file = os.path.join(log_dir, "full-{name}-{ts}.log".format(name=log_name, ts=now_string))
-        log_general_file = os.path.join(log_dir, "results-{name}-{ts}.log".format(name=log_name, ts=now_string))
+        log_results_file = os.path.join(log_dir, "results-{name}-{ts}.NEW.log".format(name=log_name, ts=now_string))
+        log_general_file = os.path.join(log_dir, "full-{name}-{ts}.log".format(name=log_name, ts=now_string))
 
         log_format = u"%(asctime)s : %(levelname)s : %(pathname)s : %(funcName)s : %(lineno)d : %(message)s"
         results_format = u"%(message)s"
