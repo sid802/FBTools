@@ -6,6 +6,7 @@ import json
 from selenium import webdriver
 from datetime import datetime
 from parsers import fb_constants as constants
+from utils.ParseLogger import LoggerManager
 
 
 class FBNode(object):
@@ -152,11 +153,12 @@ class FBParser(object):
     General FB Parser
     """
 
-    def __init__(self, debug=False):
+    def __init__(self, log_name="FBParser", log_dir='.', debug=False):
         self.driver = None  # Will be initialized later
         self._html_parser = HTMLParser()
         self._user_id = None  # Will be initialized later
         self.debug = debug
+        self._logger = LoggerManager(log_name, log_dir).getLogger()
 
     def set_driver(self, driver):
         self.driver = driver
