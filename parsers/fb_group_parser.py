@@ -57,6 +57,7 @@ class FBGroupParser(FBParser):
         group = FBGroupMeta(group_id)
 
         # Group's username
+        print 'Extracting username'
         match = constants.FBRegexes.url_group_username.search(self.driver.current_url)
         if match:
             user_name = match.group('result')
@@ -68,6 +69,7 @@ class FBGroupParser(FBParser):
         tree = html.fromstring(self.driver.page_source)
 
         # Group's title
+        print 'Extracting group title'
         match = tree.xpath(constants.FBXpaths.group_title)
         retries = 0
         while len(match) == 0 and retries < 5:
@@ -80,6 +82,7 @@ class FBGroupParser(FBParser):
             raise FBGroupParseError("Couldn't parse title of group: {0}".format(group.fid))
 
         # Group's likers amount
+        print 'Extracting likers amount'
         match = tree.xpath(constants.FBXpaths.group_members_amount)
 
         if len(match) > 0:
@@ -89,22 +92,26 @@ class FBGroupParser(FBParser):
             group.members_amount = int(members_amount_digits)
 
         # Group's description
+        print 'Extracting description'
         match = tree.xpath(constants.FBXpaths.group_description)
         if len(match) > 0:
             group_description = match[0].text_content()
             group.description = unicode(group_description)
 
         # Group's category
+        print 'Extracting category'
         match = tree.xpath(constants.FBXpaths.group_category)
         if len(match) > 0:
             group.category = unicode(match[0])
 
         # Group's privacy
+        print 'Extracting privacy'
         match = tree.xpath(constants.FBXpaths.group_privacy)
         if len(match) > 0:
             group.privacy = unicode(match[0])
 
         # Load group info to DB
+        print 'Loading to DB'
         if load_to_db:
             try:
                 group.import_to_db(group.meta['scrape_time'], self._cursor)
@@ -116,8 +123,10 @@ class FBGroupParser(FBParser):
 
         # Extract group members
         if extract_members:
+            print 'Extracting group members'
             group.members = self.parse_group_members(group_id)
             if load_to_db:
+                print 'Loading group members to DB'
                 self.import_group_members(group)
                 self._db_conn.commit()
 

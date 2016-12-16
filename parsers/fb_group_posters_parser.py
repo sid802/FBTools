@@ -40,6 +40,7 @@ class ClosedGroupException(Exception):
 
 class FBGroupInfosParser(FBParser):
     def __init__(self, group_ids, reload_amount):
+        super(FBGroupInfosParser, self).__init__()
         self.reload_amount = reload_amount
         self.group_ids = group_ids
         self.driver = None
@@ -395,7 +396,8 @@ class FBGroupInfosParser(FBParser):
             # Parse reload_amount of pages
 
             next_url = self._get_next_url(parsed_posts, last_post_id, last_timestamp, group.fid, user_id, reload_id)
-            print next_url
+            if self.debug:
+                print next_url
             reload_id += 1
             self.driver.get(next_url)
 
@@ -457,7 +459,6 @@ class FBGroupInfosParser(FBParser):
         """
         reload_amount = _stronger_value(self.reload_amount, reload_amount)
         output_path = 'logs/output_{0}.NEW.txt'.format(datetime.now().strftime('%Y%m%d-%H%M%S'))
-        print 'Log path is: {0}'.format(os.path.abspath(output_path))
         with open(output_path, 'ab+') as output:
             output.write("\r\n")  # Like that BOM won't be in front of command
             for group_id, last_post_unix in self.group_ids:
@@ -490,6 +491,7 @@ class FBGroupInfosParser(FBParser):
                     print "The group is closed. This script only parses open groups!"
                     export_to_file.write_group_end(current_group, output)
                     continue
+        print 'Log path is: {0}'.format(os.path.abspath(output_path))
 
 
 
@@ -609,7 +611,7 @@ def get_wanted_group_ids():
                 last_info_extraction
             FROM
                 facebook.group_summary
-            ORDER BY last_info_extraction ASC
+            ORDER BY last_info_extraction IS NULL DESC , LAST_INFO_EXTRACTION ASC
             LIMIT 10
             """
 
@@ -620,7 +622,13 @@ def get_wanted_group_ids():
 
     for result in results:
         group_id, timestamp_unix, _ = result
-        results_set.add((group_id, timestamp_unix - 60 * 60 * 2))  # Remove 2 hours from timestamp to be sure not to miss any posts
+
+        # Set oldest timestamp we want to parse (older posts won't be parsed)
+        if timestamp_unix is None:
+            last_timestamp = None
+        else:
+            last_timestamp = timestamp_unix - 60 * 60 * 2  # Remove 2 hours from timestamp to be sure not to miss any posts
+        results_set.add((group_id, last_timestamp))
 
     conn.close()
 

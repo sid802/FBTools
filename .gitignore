@@ -1,4 +1,6 @@
 *.pyc
-.idea*
+.idea/
+tests/
+logs/
 *.xls
 *.xlsx

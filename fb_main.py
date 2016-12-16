@@ -152,10 +152,11 @@ class FBParser(object):
     General FB Parser
     """
 
-    def __init__(self):
+    def __init__(self, debug=False):
         self.driver = None  # Will be initialized later
         self._html_parser = HTMLParser()
         self._user_id = None  # Will be initialized later
+        self.debug = debug
 
     def set_driver(self, driver):
         self.driver = driver
@@ -244,13 +245,15 @@ class FBParser(object):
         :param source: what do we parse (page/friends etc)
         :return: string of actual html response
         """
-        print 'full response:', ajax_response
+        if self.debug:
+            print 'full response:', ajax_response
         full_json_match = constants.FBRegexes.json_from_html.search(ajax_response)  # Keep only json string
         if not full_json_match:
             return None
 
         full_json = full_json_match.group('json')
-        print 'json:', full_json
+        if self.debug:
+            print 'json:', full_json
         try:
             json_dict = json.loads(full_json)
         except Exception, e:
