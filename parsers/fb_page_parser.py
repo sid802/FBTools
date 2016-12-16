@@ -18,7 +18,7 @@ class PageParser(FBParser):
         :param parse_likers: (boolean), whether to parse the users
         :return:
         """
-        super(PageParser, self).__init__()
+        super(PageParser, self).__init__(self.__class__.__name__, './logs')
         self.pages_ids = pages_ids
         self.parse_likers = parse_likers
 

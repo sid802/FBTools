@@ -15,7 +15,7 @@ class FriendsParser(FBParser):
         :param extract_user_infos: boolean, to extract the friend's basic infos
         :return:
         """
-        super(FriendsParser, self).__init__()
+        super(FriendsParser, self).__init__(self.__class__.__name__, './logs')
         self.user_targets = user_targets  # List
         self.extract_friends_infos = extract_friends_infos  # Boolean
 

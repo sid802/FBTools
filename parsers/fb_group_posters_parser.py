@@ -40,7 +40,7 @@ class ClosedGroupException(Exception):
 
 class FBGroupInfosParser(FBParser):
     def __init__(self, group_ids, reload_amount):
-        super(FBGroupInfosParser, self).__init__()
+        super(FBGroupInfosParser, self).__init__(self.__class__.__name__, './logs')
         self.reload_amount = reload_amount
         self.group_ids = group_ids
         self.driver = None
@@ -396,8 +396,8 @@ class FBGroupInfosParser(FBParser):
             # Parse reload_amount of pages
 
             next_url = self._get_next_url(parsed_posts, last_post_id, last_timestamp, group.fid, user_id, reload_id)
-            if self.debug:
-                print next_url
+            self._logger.debug("Next url is: {0}".format(next_url))
+
             reload_id += 1
             self.driver.get(next_url)
 
@@ -468,30 +468,30 @@ class FBGroupInfosParser(FBParser):
                 try:
                     current_group = parser.parse_group(group_id)
                 except fb_group_parser.FBGroupParseError:
-                    print "Couldn't parse title of group: {0}".format(group_id)
+                    self._logger.error("Couldn't parse title of group: {0}".format(group_id))
                     continue
 
                 posts_in_page = html.fromstring(self.driver.page_source).xpath(constants.FBXpaths.group_posts)
                 if len(posts_in_page) == 0 and 'closed' in current_group.privacy.lower():
-                    print "The group is closed. This script only parses open groups!"
+                    self._logger.warn("The group is closed. This script only parses open groups!")
                     continue
 
                 try:
                     export_to_file.write_group_start(current_group, output)
-                    print 'Starting to parse group: {0}'.format(blankify(current_group.title).encode('utf-8'))
+                    self._logger.info('Starting to parse group: {0}'.format(blankify(current_group.title).encode('utf-8')))
                     absolute_crawl = self._parse_group(current_group, last_post_unix, user_id, output, reload_amount=reload_amount)
                     if absolute_crawl[0]:
                         export_to_file.write_absolute_parse(current_group, output)
                     export_to_file.write_group_end(current_group, output)
-                    print 'Done parsing group: {0}\nParsed everything: {1}'.format(current_group.title.encode('utf-8'),
-                                                                                   absolute_crawl)
+                    self._logger.info('Done parsing group: {0}\nParsed everything: {1}'.format(current_group.title.encode('utf-8'),
+                                                                                   absolute_crawl))
 
                 except ClosedGroupException:
                     # Shouldn't get here unless the FB page isn't in english
-                    print "The group is closed. This script only parses open groups!"
+                    self._logger.warn("The group is closed. This script only parses open groups!")
                     export_to_file.write_group_end(current_group, output)
                     continue
-        print 'Log path is: {0}'.format(os.path.abspath(output_path))
+        self._logger.info('Log path is: {0}'.format(os.path.abspath(output_path)))
 
 
 

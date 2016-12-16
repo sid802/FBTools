@@ -29,7 +29,7 @@ class FBGroupParser(FBParser):
     """
 
     def __init__(self, group_ids=None, extract_members=False, load_to_db=False):
-        super(FBGroupParser, self).__init__()
+        super(FBGroupParser, self).__init__(self.__class__.__name__, './logs')
 
         if group_ids is None:
             group_ids = []
@@ -57,19 +57,22 @@ class FBGroupParser(FBParser):
         group = FBGroupMeta(group_id)
 
         # Group's username
-        print 'Extracting username'
+        self._logger.info('Extracting username')
         match = constants.FBRegexes.url_group_username.search(self.driver.current_url)
         if match:
             user_name = match.group('result')
             if user_name.isdigit():
                 # No username exists, it got FID
                 user_name = None
+                self._logger.warn('No username found for group <{)}>'.format(group_id))
+            else:
+                self._logger.info('Username found for group <{0}> is: {1}'.format(group_id, user_name))
             group.username = user_name
 
         tree = html.fromstring(self.driver.page_source)
 
         # Group's title
-        print 'Extracting group title'
+        self._logger.info('Extracting title for group <{0}>'.format(group_id))
         match = tree.xpath(constants.FBXpaths.group_title)
         retries = 0
         while len(match) == 0 and retries < 5:
@@ -78,11 +81,12 @@ class FBGroupParser(FBParser):
             match = tree.xpath(constants.FBXpaths.group_title)
         if len(match) > 0:
             group.title = unicode(match[0])
+            self._logger.info("Title extracted for group <{0}>: {1}".format(group_id, group.title))
         else:
             raise FBGroupParseError("Couldn't parse title of group: {0}".format(group.fid))
 
         # Group's likers amount
-        print 'Extracting likers amount'
+        self._logger.info('Extracting likers amount for group <{0}>'.format(group_id))
         match = tree.xpath(constants.FBXpaths.group_members_amount)
 
         if len(match) > 0:
@@ -90,45 +94,58 @@ class FBGroupParser(FBParser):
             members_amount_digits = re.sub(r'\D', '',
                                            members_amount_string)  # example: '8,475 people liked this' -> '8475'
             group.members_amount = int(members_amount_digits)
+            self._logger.info("Likers amount for group <{0}>: {1}".format(group_id, group.members_amount))
+        else:
+            self._logger.warn("No likers amount found for group <{0}>".format(group_id))
 
         # Group's description
-        print 'Extracting description'
+        self._logger.info('Extracting description')
         match = tree.xpath(constants.FBXpaths.group_description)
         if len(match) > 0:
             group_description = match[0].text_content()
             group.description = unicode(group_description)
+            self._logger.info("Description for group <{0}>: {1}".format(group_id, group.description))
+        else:
+            self._logger.warn("No description found for group {0}".format(group_id))
 
         # Group's category
-        print 'Extracting category'
+        self._logger.info('Extracting category for group <{0}>'.format(group_id))
         match = tree.xpath(constants.FBXpaths.group_category)
         if len(match) > 0:
             group.category = unicode(match[0])
+            self._logger.info("Category found for group <{0}>: {1}".format(group_id, group.category))
+        else:
+            self._logger.warn("No category found for group <{0}>".format(group_id))
 
         # Group's privacy
-        print 'Extracting privacy'
+        self._logger.info('Extracting privacy for group <{0}>'.format(group_id))
         match = tree.xpath(constants.FBXpaths.group_privacy)
         if len(match) > 0:
             group.privacy = unicode(match[0])
+            self._logger.info("Privacy found for group <{0}>: {1}".format(group_id, group.privacy))
+        else:
+            self._logger.info("No privacy found for group <{0}>".format(group_id))
 
         # Load group info to DB
-        print 'Loading to DB'
+        self._logger.info('Loading to DB')
         if load_to_db:
             try:
                 group.import_to_db(group.meta['scrape_time'], self._cursor)
                 self._db_conn.commit()
             except Exception, e:
-                print str(e)
-
-                print "Failed to load {0} to DB".format(group.fid)
+                msg = "Failed to load {0} to DB. Error: {1}: {2}".format(group.fid, e.__class__, e.message)
+                print msg
+                self._logger.error(msg)
 
         # Extract group members
         if extract_members:
-            print 'Extracting group members'
+            self._logger.info('Extracting group members')
             group.members = self.parse_group_members(group_id)
             if load_to_db:
-                print 'Loading group members to DB'
+                self._logger.info('Loading group members to DB')
                 self.import_group_members(group)
                 self._db_conn.commit()
+                self._logger.info('Done loading {0} members to group: {1}'.format(len(group.members), group_id))
 
         return group
 
@@ -183,8 +200,9 @@ class FBGroupParser(FBParser):
             group.import_to_db(group.meta['scrape_time'], cursor)  # Import/Update row in DB
             self.import_group_members(group)
         except Exception, e:
-            print str(e)
-            print "Failed to load {0} to DB".format(group.fid)
+            msg = "Failed to load {0} to DB. Error: {1}: {2}".format(group.fid, e.__class__, e.message)
+            print msg
+            self._logger.error(msg)
 
     def import_group_members(self, group, cursor=None):
         """
@@ -253,6 +271,7 @@ class FBGroupParser(FBParser):
                 all_groups.append(group)
             except FBGroupParseError, e:
                 print e.message
+                self._logger.error(e.message)
 
         return all_groups
 
