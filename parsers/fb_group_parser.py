@@ -57,14 +57,14 @@ class FBGroupParser(FBParser):
         group = FBGroupMeta(group_id)
 
         # Group's username
-        self._logger.info('Extracting username')
+        self._logger.info('Extracting username for group <{0}>'.format(group_id))
         match = constants.FBRegexes.url_group_username.search(self.driver.current_url)
         if match:
             user_name = match.group('result')
             if user_name.isdigit():
                 # No username exists, it got FID
                 user_name = None
-                self._logger.warn('No username found for group <{)}>'.format(group_id))
+                self._logger.warn('No username found for group <{0}>'.format(group_id))
             else:
                 self._logger.info('Username found for group <{0}> is: {1}'.format(group_id, user_name))
             group.username = user_name
@@ -81,7 +81,7 @@ class FBGroupParser(FBParser):
             match = tree.xpath(constants.FBXpaths.group_title)
         if len(match) > 0:
             group.title = unicode(match[0])
-            self._logger.info("Title extracted for group <{0}>: {1}".format(group_id, group.title))
+            self._logger.info(u"Title extracted for group <{0}>: {1}".format(group_id, group.title))
         else:
             raise FBGroupParseError("Couldn't parse title of group: {0}".format(group.fid))
 
@@ -94,9 +94,9 @@ class FBGroupParser(FBParser):
             members_amount_digits = re.sub(r'\D', '',
                                            members_amount_string)  # example: '8,475 people liked this' -> '8475'
             group.members_amount = int(members_amount_digits)
-            self._logger.info("Likers amount for group <{0}>: {1}".format(group_id, group.members_amount))
+            self._logger.info(u"Likers amount for group <{0}>: {1}".format(group_id, group.members_amount))
         else:
-            self._logger.warn("No likers amount found for group <{0}>".format(group_id))
+            self._logger.warn(u"No likers amount found for group <{0}>".format(group_id))
 
         # Group's description
         self._logger.info('Extracting description')
@@ -104,27 +104,27 @@ class FBGroupParser(FBParser):
         if len(match) > 0:
             group_description = match[0].text_content()
             group.description = unicode(group_description)
-            self._logger.info("Description for group <{0}>: {1}".format(group_id, group.description))
+            self._logger.info(u"Description for group <{0}>: {1}".format(group_id, group.description))
         else:
-            self._logger.warn("No description found for group {0}".format(group_id))
+            self._logger.warn(u"No description found for group {0}".format(group_id))
 
         # Group's category
         self._logger.info('Extracting category for group <{0}>'.format(group_id))
         match = tree.xpath(constants.FBXpaths.group_category)
         if len(match) > 0:
             group.category = unicode(match[0])
-            self._logger.info("Category found for group <{0}>: {1}".format(group_id, group.category))
+            self._logger.info(u"Category found for group <{0}>: {1}".format(group_id, group.category))
         else:
-            self._logger.warn("No category found for group <{0}>".format(group_id))
+            self._logger.warn(u"No category found for group <{0}>".format(group_id))
 
         # Group's privacy
         self._logger.info('Extracting privacy for group <{0}>'.format(group_id))
         match = tree.xpath(constants.FBXpaths.group_privacy)
         if len(match) > 0:
             group.privacy = unicode(match[0])
-            self._logger.info("Privacy found for group <{0}>: {1}".format(group_id, group.privacy))
+            self._logger.info(u"Privacy found for group <{0}>: {1}".format(group_id, group.privacy))
         else:
-            self._logger.info("No privacy found for group <{0}>".format(group_id))
+            self._logger.info(u"No privacy found for group <{0}>".format(group_id))
 
         # Load group info to DB
         self._logger.info('Loading to DB')

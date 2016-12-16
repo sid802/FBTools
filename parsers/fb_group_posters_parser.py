@@ -405,7 +405,8 @@ class FBGroupInfosParser(FBParser):
             payload = self._parse_payload_from_ajax_response(page_source,
                                                              source='group_posts')
             if payload is None:
-                output.flush()
+                if isinstance(output, file):
+                    output.flush()
                 raise Exception("Next json payload couldn't be loaded")
             payload_html = self._fix_payload(payload)  # Get unicode strings
 
@@ -413,27 +414,32 @@ class FBGroupInfosParser(FBParser):
                 result_tuple = self._parse_page(group, payload_html, output)
             except html.etree.XMLSyntaxError:
                 # Probably got to the end
-                output.flush()
+                if isinstance(output, file):
+                    output.flush()
                 return True, i
 
             if last_post_id == result_tuple[0]:
                 # Stop script from looping for ever
                 #TODO: Make sure it doesn't quit before it should
-                output.flush()
+                if isinstance(output, file):
+                    output.flush()
                 return False, i
 
             last_post_id, last_timestamp, parsed_posts = result_tuple
 
             if last_timestamp is not None and last_timestamp < last_timestamp_unix:
                 # From here on, posts have already been written in DB
-                output.flush()
+                if isinstance(output, file):
+                    output.flush()
                 return True, i
 
             if i % 10 == 0:
                 # Flush each 10 pages
-                output.flush()
+                if isinstance(output, file):
+                    output.flush()
 
-        output.flush()
+        if isinstance(output, file):
+            output.flush()
         return False, i
 
     @staticmethod
@@ -459,38 +465,36 @@ class FBGroupInfosParser(FBParser):
         """
         reload_amount = _stronger_value(self.reload_amount, reload_amount)
         output_path = 'logs/output_{0}.NEW.txt'.format(datetime.now().strftime('%Y%m%d-%H%M%S'))
-        with open(output_path, 'ab+') as output:
-            output.write("\r\n")  # Like that BOM won't be in front of command
-            for group_id, last_post_unix in self.group_ids:
-                parser = fb_group_parser.FBGroupParser()
-                parser.set_driver(self.driver)
+        for group_id, last_post_unix in self.group_ids:
+            parser = fb_group_parser.FBGroupParser()
+            parser.set_driver(self.driver)
 
-                try:
-                    current_group = parser.parse_group(group_id)
-                except fb_group_parser.FBGroupParseError:
-                    self._logger.error("Couldn't parse title of group: {0}".format(group_id))
-                    continue
+            try:
+                current_group = parser.parse_group(group_id)
+            except fb_group_parser.FBGroupParseError:
+                self._logger.error("Couldn't parse title of group: {0}".format(group_id))
+                continue
 
-                posts_in_page = html.fromstring(self.driver.page_source).xpath(constants.FBXpaths.group_posts)
-                if len(posts_in_page) == 0 and 'closed' in current_group.privacy.lower():
-                    self._logger.warn("The group is closed. This script only parses open groups!")
-                    continue
+            posts_in_page = html.fromstring(self.driver.page_source).xpath(constants.FBXpaths.group_posts)
+            if len(posts_in_page) == 0 and 'closed' in current_group.privacy.lower():
+                self._logger.warn(u"The group is closed. This script only parses open groups!")
+                continue
 
-                try:
-                    export_to_file.write_group_start(current_group, output)
-                    self._logger.info('Starting to parse group: {0}'.format(blankify(current_group.title).encode('utf-8')))
-                    absolute_crawl = self._parse_group(current_group, last_post_unix, user_id, output, reload_amount=reload_amount)
-                    if absolute_crawl[0]:
-                        export_to_file.write_absolute_parse(current_group, output)
-                    export_to_file.write_group_end(current_group, output)
-                    self._logger.info('Done parsing group: {0}\nParsed everything: {1}'.format(current_group.title.encode('utf-8'),
-                                                                                   absolute_crawl))
+            try:
+                export_to_file.write_group_start(current_group, self._logger)
+                self._logger.info('Starting to parse group: {0}'.format(blankify(current_group.title).encode('utf-8')))
+                absolute_crawl = self._parse_group(current_group, last_post_unix, user_id, self._logger, reload_amount=reload_amount)
+                if absolute_crawl[0]:
+                    export_to_file.write_absolute_parse(current_group, self._logger)
+                export_to_file.write_group_end(current_group, self._logger)
+                self._logger.info('Done parsing group: {0}\nParsed everything: {1}'.format(current_group.title.encode('utf-8'),
+                                                                               absolute_crawl))
 
-                except ClosedGroupException:
-                    # Shouldn't get here unless the FB page isn't in english
-                    self._logger.warn("The group is closed. This script only parses open groups!")
-                    export_to_file.write_group_end(current_group, output)
-                    continue
+            except ClosedGroupException:
+                # Shouldn't get here unless the FB page isn't in english
+                self._logger.warn(u"The group is closed. This script only parses open groups!")
+                export_to_file.write_group_end(current_group, output)
+                continue
         self._logger.info('Log path is: {0}'.format(os.path.abspath(output_path)))
 
 
