@@ -77,8 +77,8 @@ class LoggerManager(object):
         results_filter = StartFilter(results_start_filter)
         results_handler.addFilter(results_filter)
 
-        logger.addHandler(results_handler)
         logger.addHandler(general_handler)
+        logger.addHandler(results_handler)
         logger.setLevel(logging.DEBUG)
         logger.propagate = False
 

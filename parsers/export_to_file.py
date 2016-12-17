@@ -19,9 +19,19 @@ _ACTION_DICT = {
     _ACTION_COMMENTER: 'commenter'
 }
 
-NEW_RECORD_PREFIX = 'new_record '
-NEWLINE = "\r\n"
+NEW_RECORD_PREFIX = u'new_record '
+NEWLINE = u"\r\n"
 
+def encode_dict(dict, encoding='utf-8'):
+    """
+    :param dict: Dictionary 
+    :return: Dictionary with keys and values unicode-ified
+    """
+    
+    new_dict = {}
+    for k, v in dict.iteritems():
+        new_dict[k.encode(encoding)] = v.encode(encoding)
+    return new_dict
 
 def write_user_posts(user_posts, output_file):
     """
@@ -39,7 +49,7 @@ def write_user_start(user, output_file):
     :param output_file: File to write to
     :return:
     """
-    _write_user_action(user, 'start', output_file)
+    _write_user_action(user, u'start', output_file)
 
 
 def write_user_end(user, output_file):
@@ -48,7 +58,7 @@ def write_user_end(user, output_file):
     :param output_file: File to write to
     :return:
     """
-    _write_user_action(user, 'end', output_file)
+    _write_user_action(user, u'end', output_file)
 
 
 def _write_user_action(user, action, output_file):
@@ -59,14 +69,15 @@ def _write_user_action(user, action, output_file):
     :return:
     """
 
-    record = "{action}_user\t{u_id}\t{u_u_name}\t{u_f_name}".format(
-        action=action,
-        u_id=user.fid,
-        u_u_name=blankify(user.user_name),
-        u_f_name=user.full_name
-    )
+    d = {
+        u'action': action,
+        u'u_id': user.fid,
+        u'u_u_name': blankify(user.user_name),
+        u'u_f_name': user.full_name
+    }
 
-    _export_message(output_file, record)
+    record = u"{action}_user\t{u_id}\t{u_u_name}\t{u_f_name}"
+    _export_message(output_file, record, **d)
 
 
 def write_group_start(group, output_file):
@@ -75,7 +86,7 @@ def write_group_start(group, output_file):
     :param output_file: File to write to
     :return:
     """
-    _write_group_action(group, 'start', output_file)
+    _write_group_action(group, u'start', output_file)
 
 
 def write_group_end(group, output_file):
@@ -84,7 +95,7 @@ def write_group_end(group, output_file):
     :param output_file: File to write to
     :return:
     """
-    _write_group_action(group, 'end', output_file)
+    _write_group_action(group, u'end', output_file)
 
 
 def write_post_start(post, output_file):
@@ -93,7 +104,7 @@ def write_post_start(post, output_file):
     :param output_file: file to write to
     :return:
     """
-    _write_post_action(post, 'start', output_file)
+    _write_post_action(post, u'start', output_file)
 
 
 def write_post_end(post, output_file):
@@ -102,18 +113,20 @@ def write_post_end(post, output_file):
     :param output_file: file to write to
     :return:
     """
-    _write_post_action(post, 'end', output_file)
+    _write_post_action(post, u'end', output_file)
 
 
-def _export_message(output, record):
+def _export_message(output, record_fmt, encoding='utf-8', **fmt_dict):
     """
     :param output: Output object (file/logger)
-    :param record: Record we want to write
+    :param record_fmt: Record we want to write
+    :param fmt_dict: Dictionary fillind the record_fmt
     """
     if isinstance(output, file):
-        output.write(record + NEWLINE)
+        encoded_dict = encode_dict(fmt_dict, encoding)
+        output.write((record_fmt + NEWLINE).format(**encoded_dict))
     elif isinstance(output, Logger):
-        output.info(NEW_RECORD_PREFIX + record)
+        output.info((NEW_RECORD_PREFIX + record_fmt).format(**fmt_dict))
 
 def _write_post_action(post, action, output_file, encoding='utf-8'):
     """
@@ -124,19 +137,20 @@ def _write_post_action(post, action, output_file, encoding='utf-8'):
     """
 
     if post.date_time is None:
-        date_time = ''
+        date_time = u''
     else:
         date_time = post.date_time.strftime(u"%d/%m/%Y %H:%M")
 
-    record = "{action}_post\t{p_id}\t{g_id}\t{u_id}\t{p_time}".format(
-        action=action.encode(encoding),
-        p_id=post.fid.encode(encoding),
-        g_id=post.group.fid.encode(encoding),
-        u_id=post.author.user.fid.encode(encoding),
-        p_time=date_time.encode(encoding)
-    )
+    d = {
+        u'action': action,
+        u'p_id': post.fid,
+        u'g_id': post.group.fid,
+        u'u_id': post.author.user.fid,
+        u'p_time': date_time
+    }
 
-    _export_message(output_file, record)
+    record_fmt = u"{action}_post\t{p_id}\t{g_id}\t{u_id}\t{p_time}"
+    _export_message(output_file, record_fmt, **d)
 
 
 
@@ -148,18 +162,21 @@ def _write_group_action(group, action, output_file, encoding='utf-8'):
     :param output_file: file to write to
     :return:
     """
-    record = "{action}_group\t{g_id}\t{g_name}\t{g_user}\t{g_member}\t{priv}\t{desc}\t{cat}".format(
-        action=action.encode(encoding),
-        g_id=group.fid.encode(encoding),
-        g_name=group.title.encode(encoding),
-        g_user=blankify(group.username).encode(encoding),
-        g_member=group.members_amount,
-        priv=blankify(group.privacy).encode(encoding),
-        desc=blankify(group.description).encode(encoding),
-        cat=blankify(group.category).encode(encoding)
-        )
+    
+    d = {
+        u'action': action,
+        u'g_id': group.fid,
+        u'g_name': group.title,
+        u'g_user': blankify(group.username),
+        u'g_member': group.members_amount,
+        u'priv': blankify(group.privacy),
+        u'desc': blankify(group.description),
+        u'cat': blankify(group.category)
+    }
+    
+    record = u"{action}_group\t{g_id}\t{g_name}\t{g_user}\t{g_member}\t{priv}\t{desc}\t{cat}"
 
-    _export_message(output_file, record)
+    _export_message(output_file, record, **d)
 
 
 def write_user_post(user_post, output_file):
@@ -171,9 +188,9 @@ def write_user_post(user_post, output_file):
 
     write_post_start(user_post, output_file)  # user_id of author is written there
 
-    write_user_infos(user_post.author, 'author', output_file)  # user_post.author is UserInfo instance
+    write_user_infos(user_post.author, u'author', output_file)  # user_post.author is UserInfo instance
     for commenter in user_post.commenters:
-        write_user_infos(commenter, 'commenter', output_file)  # commenter is UserInfo instance
+        write_user_infos(commenter, u'commenter', output_file)  # commenter is UserInfo instance
 
     write_post_end(user_post, output_file)
 
@@ -186,28 +203,32 @@ def write_user_infos(user, action, output_file, encoding='utf-8'):
     We MUST also write user_id because of the commenters. Author's user_id can be found be joining to the post
     """
 
-    record = "add_user\t{id}\t{user_name}\t{full_name}".format(
-        id=user.user.fid.encode(encoding),
-        user_name=blankify(user.user.user_name).encode(encoding),
-        full_name=user.user.full_name.encode(encoding)
-    )
+    record = u"add_user\t{id}\t{user_name}\t{full_name}"
+    
+    d = {
+        u'id': user.user.fid,
+        u'user_name': blankify(user.user.user_name),
+        u'full_name': user.user.full_name
+    }
 
-    _export_message(output_file, record)
+    _export_message(output_file, record, **d)
 
 
     if not user.infos:
-        user.infos.add(('', '', ''))  # At least the user will be written
+        user.infos.add((u'', u'', u''))  # At least the user will be written
 
     for info in user.infos:
-        record = "add_info\t{u_id}\t{action}\t{i_kind}\t{i_canonized}\t{i_original}".format(
-            u_id=user.user.fid.encode(encoding),
-            action=action.encode(encoding),
-            i_kind=info[2].encode(encoding),
-            i_canonized=info[0].encode(encoding),
-            i_original=info[1].encode(encoding)
-        )
-
-        _export_message(output_file, record)
+        
+        d = {
+            u'u_id': user.user.fid,
+            u'action': action,
+            u'i_kind': info[2],
+            u'i_canonized': info[0],
+            u'i_original': info[1]
+        }
+        
+        record = u"add_info\t{u_id}\t{action}\t{i_kind}\t{i_canonized}\t{i_original}"
+        _export_message(output_file, record, **d)
 
 
 def write_absolute_parse(group, output_file):
@@ -218,5 +239,6 @@ def write_absolute_parse(group, output_file):
     Writes a command that group has absolutely been parsed
     """
 
-    record = "abs_parse\t{id}".format(id=group.fid)
-    _export_message(output_file, record)
+    d = {u'id': group.fid}
+    record = u"abs_parse\t{id}"
+    _export_message(output_file, record, **d)

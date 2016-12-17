@@ -173,7 +173,7 @@ def main(dir_path):
     if dir_path is None:
         dir_path = get_dir_path()
 
-    file_paths = glob("{path}/*.NEW.txt".format(path=dir_path))  # Choose only .txt files in dir
+    file_paths = glob("{path}/*.NEW.log".format(path=dir_path))  # Choose only .txt files in dir
     for file_path in file_paths:
         import_file(file_path)
         new_file_path = file_path_to_imported(file_path)
