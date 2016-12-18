@@ -25,6 +25,7 @@ import export_to_file
 from fb_main import *
 from fb_main import _stronger_value, _default_vs_new, blankify
 import fb_group_parser
+from fb_group_posters_importer import import_dir
 
 
 # Constants
@@ -396,7 +397,7 @@ class FBGroupInfosParser(FBParser):
             # Parse reload_amount of pages
 
             next_url = self._get_next_url(parsed_posts, last_post_id, last_timestamp, group.fid, user_id, reload_id)
-            self._logger.debug("Next url is: {0}".format(next_url))
+            self._logger.getLogger().debug("Next url is: {0}".format(next_url))
 
             reload_id += 1
             self.driver.get(next_url)
@@ -472,30 +473,30 @@ class FBGroupInfosParser(FBParser):
             try:
                 current_group = parser.parse_group(group_id)
             except fb_group_parser.FBGroupParseError:
-                self._logger.error("Couldn't parse title of group: {0}".format(group_id))
+                self._logger.getLogger().error("Couldn't parse title of group: {0}".format(group_id))
                 continue
 
             posts_in_page = html.fromstring(self.driver.page_source).xpath(constants.FBXpaths.group_posts)
             if len(posts_in_page) == 0 and 'closed' in current_group.privacy.lower():
-                self._logger.warn(u"The group is closed. This script only parses open groups!")
+                self._logger.getLogger().warn(u"The group is closed. This script only parses open groups!")
                 continue
 
             try:
-                export_to_file.write_group_start(current_group, self._logger)
-                self._logger.info('Starting to parse group: {0}'.format(blankify(current_group.title).encode('utf-8')))
-                absolute_crawl = self._parse_group(current_group, last_post_unix, user_id, self._logger, reload_amount=reload_amount)
+                export_to_file.write_group_start(current_group, self._logger.getLogger())
+                self._logger.getLogger().info(u'Starting to parse group: {0}'.format(current_group.title))
+                absolute_crawl = self._parse_group(current_group, last_post_unix, user_id, self._logger.getLogger(), reload_amount=reload_amount)
                 if absolute_crawl[0]:
-                    export_to_file.write_absolute_parse(current_group, self._logger)
-                export_to_file.write_group_end(current_group, self._logger)
-                self._logger.info('Done parsing group: {0}\nParsed everything: {1}'.format(current_group.title.encode('utf-8'),
-                                                                               absolute_crawl))
+                    export_to_file.write_absolute_parse(current_group, self._logger.getLogger())
+                export_to_file.write_group_end(current_group, self._logger.getLogger())
+                self._logger.getLogger().info(u'Done parsing group: {0}\nParsed everything: {1}'
+                                              .format(current_group.title, absolute_crawl))
 
             except ClosedGroupException:
                 # Shouldn't get here unless the FB page isn't in english
-                self._logger.warn(u"The group is closed. This script only parses open groups!")
+                self._logger.getLogger().warn(u"The group is closed. This script only parses open groups!")
                 export_to_file.write_group_end(current_group, output)
                 continue
-        self._logger.info('Log path is: {0}'.format(os.path.abspath(output_path)))
+        self._logger.getLogger().info(u'Log path is: {0}'.format(os.path.abspath(output_path)))
 
 
 
@@ -503,13 +504,16 @@ class FBGroupInfosParser(FBParser):
     def run(self, email, password, reload_amount=None):
         """
         start running the parser
+        :return: Full path to log with results
         """
         reload_amount = _stronger_value(self.reload_amount, reload_amount)
         my_id = self.init_connect(email, password)  # Connect to facebook
 
         if my_id is None:
             raise Exception("User id not found in homepage")
+        logger.init_logger()
         self._parse_all_groups(user_id=my_id, reload_amount=reload_amount)
+        logger.shutdown()
         self.driver.quit()
 
 
@@ -593,6 +597,9 @@ def main(params_dict=None):
 
     group_parser = FBGroupInfosParser(group_ids=group_ids, reload_amount=amount)
     group_parser.run(email, password)
+    import_dir(logger.log_directory)
+
+
     raw_input('Enter anything to finish')
 
 

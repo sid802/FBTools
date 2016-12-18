@@ -175,7 +175,6 @@ def _write_group_action(group, action, output_file, encoding='utf-8'):
     }
     
     record = u"{action}_group\t{g_id}\t{g_name}\t{g_user}\t{g_member}\t{priv}\t{desc}\t{cat}"
-
     _export_message(output_file, record, **d)
 
 

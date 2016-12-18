@@ -38,10 +38,32 @@ class LoggerManager(object):
         self.log_name = log_name
         self.log_directory = os.path.abspath(log_directory)
         self.encoding = encoding
-        self.logger = self.create_new_logger(log_name, self.log_directory, encoding)
+        self.logger = None  # Will be initiated later
 
     def getLogger(self):
         return self.logger
+
+    def init_logger(self):
+        """
+        :return: Creates new instance, shuts down previous if still exists
+        """
+        if self.logger is not None:
+            self.shutdown()
+        self._reset()
+
+
+    def _reset(self):
+        """
+        :return: Reset and create new file logger
+        """
+        if hasattr(self, 'logger') and self.logger is not None:
+            self.shutdown()
+        self.logger = self.create_new_logger(self.log_name, self.log_directory, self.encoding)
+
+    def shutdown(self):
+        if self.logger.handlers is not None and len(self.logger.handlers) > 0:
+            logging.shutdown(self.logger.handlers)
+        del self.logger
 
     class ResultsFilter(logging.Filter):
         def filter(self, record):
@@ -60,8 +82,8 @@ class LoggerManager(object):
 
         log_format = u"%(asctime)s : %(levelname)s : %(pathname)s : %(funcName)s : %(lineno)d : %(message)s"
         results_format = u"%(message)s"
-        results_start_filter = "new_record"
-        results_strip_start = "new_record"
+        results_start_filter = "new_record\s*"
+        results_strip_start = "new_record\s*"
 
         logger = logging.getLogger(log_name)
 
@@ -84,4 +106,4 @@ class LoggerManager(object):
 
         return logger
 
-logger = LoggerManager("FBParsing", './logs').getLogger()
+logger = LoggerManager("FBParsing", './logs')
