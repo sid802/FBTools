@@ -488,13 +488,13 @@ class FBGroupInfosParser(FBParser):
                 if absolute_crawl[0]:
                     export_to_file.write_absolute_parse(current_group, self._logger.getLogger())
                 export_to_file.write_group_end(current_group, self._logger.getLogger())
-                self._logger.getLogger().info(u'Done parsing group: {0}\nParsed everything: {1}'
+                self._logger.getLogger().info(u'Done parsing group: {0}, Parsed everything: {1}'
                                               .format(current_group.title, absolute_crawl))
 
             except ClosedGroupException:
                 # Shouldn't get here unless the FB page isn't in english
                 self._logger.getLogger().warn(u"The group is closed. This script only parses open groups!")
-                export_to_file.write_group_end(current_group, output)
+                export_to_file.write_group_end(current_group, self._logger.getLogger())
                 continue
         self._logger.getLogger().info(u'Log path is: {0}'.format(os.path.abspath(output_path)))
 
@@ -513,7 +513,7 @@ class FBGroupInfosParser(FBParser):
             raise Exception("User id not found in homepage")
         logger.init_logger()
         self._parse_all_groups(user_id=my_id, reload_amount=reload_amount)
-        logger.shutdown()
+        logger.close_handlers()
         self.driver.quit()
 
 

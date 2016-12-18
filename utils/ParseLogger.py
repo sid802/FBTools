@@ -48,7 +48,7 @@ class LoggerManager(object):
         :return: Creates new instance, shuts down previous if still exists
         """
         if self.logger is not None:
-            self.shutdown()
+            self.close_handlers()
         self._reset()
 
 
@@ -57,12 +57,14 @@ class LoggerManager(object):
         :return: Reset and create new file logger
         """
         if hasattr(self, 'logger') and self.logger is not None:
-            self.shutdown()
+            self.close_handlers()
         self.logger = self.create_new_logger(self.log_name, self.log_directory, self.encoding)
 
-    def shutdown(self):
+    def close_handlers(self):
         if self.logger.handlers is not None and len(self.logger.handlers) > 0:
-            logging.shutdown(self.logger.handlers)
+            for handler in self.logger.handlers:
+                handler.close()
+                self.logger.removeHandler(handler)
         del self.logger
 
     class ResultsFilter(logging.Filter):

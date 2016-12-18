@@ -147,7 +147,7 @@ def import_file(file_path, delimiter='\t'):
 
         conn.commit()  # files that weren't committed because 1000 wasnt hit
 
-    print 'DONE IMPORTING'
+    print 'DONE IMPORTING file: {0}'.format(file_path)
 
 
 def get_dir_path():
@@ -175,7 +175,6 @@ def import_dir(dir_path):
 
     file_paths = glob("{path}/*.NEW.log".format(path=dir_path))  # Choose only .txt files in dir
     for file_path in file_paths:
-        print 'Importing file {0}'.format(file_path)
         import_file(file_path)
         new_file_path = file_path_to_imported(file_path)
         shutil.move(file_path, new_file_path)
