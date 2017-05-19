@@ -623,7 +623,7 @@ def get_wanted_group_ids():
             FROM
                 facebook.group_summary
             ORDER BY last_info_extraction IS NULL DESC , LAST_INFO_EXTRACTION ASC
-            LIMIT 10
+            LIMIT 20
             """
 
     cursor.execute(QUERY)

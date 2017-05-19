@@ -50,7 +50,7 @@ class FBXpaths(object):
     page_long_desc_unified = '//div[contains(text(), "Long Desc")]/../../div[2]//text()'
 
     # Groups
-    group_title = '//div[@id="fbProfileCover"]//h1/a/text()'
+    group_title = '//h1[@id="seo_h1_tag"]/a/text()'
     group_members_amount = '//span[@id="count_text"]/text()'
     group_description = '//div[@id="groupsDescriptionBox"]//div[contains(@class,"text_exposed_root")]'
     group_category = '//div[@id="groupsDescriptionBox"]//div[@class="groupsEditDescriptionArea"]//div[3]/span/text()'
